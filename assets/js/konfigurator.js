@@ -109,10 +109,10 @@ function applyDocking(t, force = false) {
 function views() {
   const { W, H, D, w, h, bayX } = dims; const cx = state.mode === 'studio' ? 0 : bayX(state.activeBay); const yc = DOCK_H + h / 2;
   return {
-    yard: { pos: [cx + W * .35 + 6, 4.5, 26], tgt: [cx - 2, 2.2, 0], polar: .3, dist: [4, 90] },
+    yard: { pos: [cx + 17, 5.5, 27], tgt: [cx - 3, 2.2, 0], polar: .3, dist: [4, 90] },
     bay: { pos: [cx + 9, 2.6, 6.5], tgt: [cx + .5, yc - .3, .6], polar: .3, dist: [2, 40] },
     inside: { pos: [cx + 1.5, DOCK_H + 1.7, -7.5], tgt: [cx, yc, 0], polar: .3, dist: [1.5, 30] },
-    hall: { pos: [cx - 6, DOCK_H + 3.5, -D + 3], tgt: [cx, DOCK_H + 1.5, -4], polar: .3, dist: [2, 60] },
+    hall: { pos: [cx - 5, DOCK_H + 3.2, -13], tgt: [cx + 1, DOCK_H + 1.4, -2], polar: .3, dist: [2, 60] },
     top: { pos: [cx, 34, 12], tgt: [cx, 0, -2], polar: .05, dist: [10, 120] },
     studio: { pos: [w * 1.2 + 4, 2.4, 9.5], tgt: [0, yc + .2, 0], polar: .25, dist: [3, 30] },
     detail: { pos: [-1.8, DOCK_H + 1.4, 3.4], tgt: [-.5, DOCK_H + 1.1, 0], polar: .25, dist: [1, 30] },

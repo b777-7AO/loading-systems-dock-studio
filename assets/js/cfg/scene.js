@@ -273,8 +273,11 @@ export function buildTruck({ M, kind }) {
     const L = 13.6, W = 2.55, H = 2.7, bed = 1.3;
     const boxm = box(W, H - .06, L, M.trailerBox, 0, bed + .06 + (H - .06) / 2, L / 2); g.add(boxm);
     g.add(box(W, .35, L, M.chassis, 0, bed - .18, L / 2)); g.add(box(W - .04, .06, .5, M.rim, 0, bed + .02, .25)); // rear sill
-    [-1, 1].forEach(s => { g.add(box(.05, H - .1, .05, M.dark, s * (W / 2 - .3), bed + H / 2, .03, { shadow: false })); g.add(box(.08, .5, .06, M.dark, s * (W / 2 - .3), bed + .7, .04, { shadow: false })); });
-    g.add(box(W + .1, .08, .2, M.red, 0, bed - .4, .05, { shadow: false }));
+    // rear doors: centre seam, two locking bars per leaf, hinges, underrun bar, lights
+    g.add(box(.02, H - .2, .02, M.dark, 0, bed + H / 2, .02, { shadow: false }));
+    [-1, 1].forEach(s => { [.45, .95].forEach(x_ => { g.add(box(.04, H - .3, .04, M.galv, s * x_, bed + H / 2, .04, { shadow: false })); g.add(box(.12, .05, .06, M.dark, s * x_, bed + 1.0, .05, { shadow: false })); g.add(box(.12, .05, .06, M.dark, s * x_, bed + H - .6, .05, { shadow: false })); });
+      [.3, 1.3, 2.3].forEach(y_ => g.add(box(.06, .18, .05, M.dark, s * (W / 2 - .03), bed + y_, .03, { shadow: false }))); g.add(box(.14, .08, .04, M.red, s * (W / 2 - .2), bed - .15, .06, { shadow: false })); });
+    g.add(box(W - .4, .1, .08, M.galv, 0, bed - .45, .02, { shadow: false })); g.add(box(.5, .11, .02, M.sign, 0, bed - .25, .06, { shadow: false }));
     [1.3, 2.6, 3.9].forEach(z => [-1, 1].forEach(s => wheel(s * (W / 2 - .25), z)));
     // tractor
     const cz = L + .3; g.add(box(W - .1, .6, 3.4, M.chassis, 0, .75, cz + 1.4));
@@ -351,9 +354,15 @@ export function buildWarehouse({ mats, st, studio = false }) {
   else if (st.interiorLight === 'highbay') { for (let i = 0; i < 3; i++) for (let k = 0; k < Math.max(2, Math.round(W / 9)); k++) { const x = x0 + 4.5 + k * (W - 9) / Math.max(1, Math.round(W / 9) - 1), z = -4 - i * 7; const l = cyl(.22, .12, M.lamp, x, H - .7, z, 20, { shadow: false }); g.add(l); lightMeshes.push(l); g.add(cyl(.26, .1, M.dark, x, H - .6, z, 20, { shadow: false })); const pl = new THREE.PointLight(0xfff4e0, 45, 20, 1.6); pl.position.set(x, H - 1.1, z); g.add(pl); } }
   // interior: yellow safety line, racks, forklift, dock bumpers inside? (no), control box per bay
   if (!studio) {
-    g.add(plane(W - .6, .12, M.yellowStripe, 0, DOCK_H + .003, -4.2));
+    g.add(plane(W - .6, .12, M.yellowStripe, 0, DOCK_H + .003, -4.2)); g.add(plane(W - .6, .12, M.yellowStripe, 0, DOCK_H + .003, -4.6));
     for (let k = 0; k < Math.max(1, Math.floor((W - 6) / 9)); k++) g.add(rack(M, x0 + 2.5 + k * 9, -D + 2.2, 3, 3));
-    g.add(forklift(M, bayX(Math.min(1, bays - 1)) + 2.4, -8.5, -.6));
+    for (let k = 0; k < Math.max(1, Math.floor((W - 6) / 9)); k++) g.add(rack(M, x0 + 2.5 + k * 9, -D + 6.0, 3, 3));
+    g.add(forklift(M, bayX(Math.min(1, bays - 1)) + 2.6, -8.5, -.6));
+    // staged pallets behind the active dock
+    for (let i = 0; i < bays; i++) for (let k = 0; k < 3; k++) { if ((i * 3 + k) % 4 === 1) continue; const px = bayX(i) - 1.4 + k * 1.4, pz = -6.2 - (k % 2) * 1.1; g.add(box(1.2, .14, .8, M.pallet, px, DOCK_H + .07, pz)); const bh = .6 + ((i + k) % 3) * .35; g.add(box(1.1, bh, .75, M.boxKraft, px, DOCK_H + .14 + bh / 2, pz)); }
+    // steel columns along the side walls, roof lights (skylight strips)
+    for (let z = -4; z > -D; z -= 6) [x0 + .5, -x0 - .5].forEach(x => g.add(box(.3, H - .2, .3, M.truss, x, H / 2, z)));
+    for (let z = -6; z > -D; z -= 9) g.add(box(W - 4, .05, 1.2, M.lamp, 0, H + .02, z, { shadow: false }));
   }
   // yard: asphalt apron, lane markings per bay, kerb, lawn, hedge, fence line
   const yardD = studio ? 10 : 40;
@@ -363,6 +372,8 @@ export function buildWarehouse({ mats, st, studio = false }) {
     g.add(plane(W + 60, 60, M.lawn, 0, -.01, yardD + 30)); g.add(box(W + 60, .14, .2, M.plinth, 0, .07, yardD, { shadow: false }));
     g.add(box(W + 60, 1.0, .8, M.hedge, 0, .5, yardD + 2.5));
   }
+  // a parked trailer at the far end of the yard for scale
+  if (!studio && bays > 1) { const pt = buildTruck({ M, kind: 'truck' }); pt.group.position.set(x0 - 6, 0, 14); pt.group.rotation.y = .55; g.add(pt.group); }
   // per bay
   for (let i = 0; i < bays; i++) {
     const cx = bayX(i); const bay = new THREE.Group(); bay.position.x = cx; g.add(bay);
