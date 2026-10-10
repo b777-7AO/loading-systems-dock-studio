@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Listenpreise 2026 · Sektionaltore, Schnelllauf-Sektionaltor, Nebentüren · Loading Systems</title>
+  <meta name="description" content="Listenpreise aus den Preislisten 11DE-601N, 601DD, 0620NG und 604NG: PowerDoor 601, Dock Door 040/045, Schnelllauf-Sektionaltor 620NG und Nebentür 604NG nach Breite und Höhe, plus Optionen.">
+  <link rel="icon" type="image/png" href="assets/img/favicon.png"><meta name="theme-color" content="#e00034">
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/style.css?v=1">
+  <style>.calc { display: grid; grid-template-columns: 300px 1fr; gap: 1.6rem; align-items: start; } .calc .box { background: #fff; border: 1px solid var(--line); padding: 1.2rem; display: grid; gap: .8rem; } .calc label { display: grid; gap: .3rem; font-size: .8rem; font-weight: 600; } .calc select, .calc input { font: inherit; padding: .6rem; border: 1.5px solid var(--line-dark); } .calc .result { font-size: 1.6rem; font-weight: 700; color: var(--ink-2); } .calc .result small { display: block; font-size: .8rem; font-weight: 400; color: var(--text-soft); } table.price td.hit { background: #fdeef1; font-weight: 700; color: var(--red); } .opts { columns: 2; gap: 2rem; font-size: .9rem; } .opts li { break-inside: avoid; display: flex; justify-content: space-between; gap: 1rem; padding: .3rem 0; border-bottom: 1px solid var(--line); } @media (max-width: 900px) { .calc { grid-template-columns: 1fr; } .opts { columns: 1; } }</style>
+  <script type="importmap">{ "imports": { "three": "./assets/vendor/three/three.module.js" } }</script>
+</head>
+<body>
+  <div data-include="partials/header.html" data-root=""></div>
+  <main>
+    <section class="page-hero"><div class="container"><span class="eyebrow">Listenpreise 2026</span><h1>Was kostet ein Industrietor?</h1><p class="lead">Listenpreise (LSP) in Euro netto ab Werk aus den aktuellen Preislisten: PowerDoor 601 (gültig ab 14.09.2026), Dock Door 040/045, Schnelllauf-Sektionaltor 620NG und Nebentür 604NG (gültig ab 01.06.2026). Optionen, Montage und Mehrwertsteuer kommen hinzu. Die komplette Verladestelle rechnen Sie im Dock Studio durch.</p><div class="hero-actions"><a class="btn btn-primary" href="konfigurator.html">Im Dock Studio berechnen</a></div></div></section>
+
+    <section class="block"><div class="container">
+      <div class="section-title-row"><span class="eyebrow">Preisrechner</span><h2>Basispreis nach Breite und Höhe.</h2><p>Die Preislisten sind Matrizen: Zwischenmaße werden auf das nächstgrößere Matrixmaß aufgerundet.</p></div>
+      <div class="calc">
+        <div class="box">
+          <label>Tor<select id="pDoor"><option value="pd601">PowerDoor 601</option><option value="dockdoor">Dock Door 040/045</option><option value="hs620">Schnelllauf-Sektionaltor 620NG</option></select></label>
+          <label>Breite (mm)<input type="number" id="pW" value="3000" step="50"></label>
+          <label>Höhe (mm)<input type="number" id="pH" value="3250" step="50"></label>
+          <div class="result" id="pResult"></div>
+        </div>
+        <div class="table-wrap"><table class="price" id="pTable"></table></div>
+      </div>
+    </div></section>
+
+    <section class="block alt"><div class="container">
+      <div class="section-title-row"><span class="eyebrow">Nebentür 604NG</span><h2>Mandoor NG, mit und ohne Thermobrücke.</h2></div>
+      <div class="table-wrap"><table class="price" id="mTable"></table></div>
+    </div></section>
+
+    <section class="block"><div class="container">
+      <div class="section-title-row"><span class="eyebrow">Optionen</span><h2>Aufpreise laut Preisliste PowerDoor 601 und 620NG.</h2></div>
+      <ul class="opts" id="optList"></ul>
+      <p style="font-size:.85rem;color:var(--text-soft);margin-top:1.2rem">Überladebrücken, Torabdichtungen, Puffer, Wegfahrsicherungen, Dock-Licht und Ladehäuser werden nach Aufmaß angeboten. Alle Angaben ohne Gewähr, maßgeblich ist das schriftliche Angebot.</p>
+    </div></section>
+  </main>
+  <div data-include="partials/footer.html" data-root=""></div>
+  <script src="assets/js/main.js"></script>
+  <script type="module">
+    import * as C from './assets/js/cfg/catalog.js';
+    const $ = id => document.getElementById(id);
+    function table() {
+      const id = $('pDoor').value, t = C.PRICES[id], w = +$('pW').value, h = +$('pH').value; const hit = C.basePrice(id, w, h);
+      const heights = Object.keys(t.rows).map(Number).sort((a, b) => a - b);
+      $('pTable').innerHTML = `<thead><tr><th>Höhe \\ Breite</th>${t.widths.map(x => `<th>${x}</th>`).join('')}</tr></thead><tbody>${heights.map(hh => `<tr><th>${hh}</th>${t.widths.map((x, i) => { const v = t.rows[String(hh)][i]; const cls = hit && hit.W === x && hit.H === hh ? ' class="hit"' : ''; return `<td${cls}>${v != null ? C.eur(v) : '–'}</td>`; }).join('')}</tr>`).join('')}</tbody>`;
+      $('pResult').innerHTML = hit ? `${C.eur(hit.price)}<small>${t.name}, Matrixmaß ${hit.W} × ${hit.H} mm, ${hit.rev}, gültig ab ${hit.validFrom.split('-').reverse().join('.')}</small>` : `auf Anfrage<small>Maß außerhalb der Preismatrix</small>`;
+    }
+    ['pDoor', 'pW', 'pH'].forEach(i => $(i).addEventListener('input', table)); table();
+    const m = C.PRICES.mandoor; $('mTable').innerHTML = `<thead><tr><th>Höhe \\ Breite</th>${m.widths.map(x => `<th>${x} ohne</th>`).join('')}${m.widths.map(x => `<th>${x} mit Thermobrücke</th>`).join('')}</tr></thead><tbody>${Object.entries(m.rows).map(([h, r]) => `<tr><th>${h}</th>${r.plain.map(v => `<td>${C.eur(v)}</td>`).join('')}${r.thermal.map(v => `<td>${C.eur(v)}</td>`).join('')}</tr>`).join('')}</tbody>`;
+    const rows = [];
+    Object.values(C.PANEL_TYPES).forEach(v => rows.push([v.label, v.pct ? `+${v.pct} %` : 'Serie']));
+    Object.values(C.LIFT).forEach(v => rows.push([v.label, v.pct ? `+${v.pct} %` : v.fix ? C.eur(v.fix) : 'Serie']));
+    Object.values(C.WINDOWS).forEach(v => { if (v.price) rows.push([v.label, C.eur(v.price) + ' / St.']); });
+    Object.values(C.FULLVISION).forEach(v => { if (v.perM) rows.push([v.label, C.eur(v.perM) + ' / m']); });
+    Object.values(C.WICKET).forEach(v => { if (v.price) rows.push([v.label, C.eur(v.price)]); });
+    Object.values(C.WICKET_LOCK).forEach(v => { if (v.price) rows.push([v.label, C.eur(v.price)]); });
+    Object.values(C.OPERATION).forEach(v => { if (v.price) rows.push([v.label, C.eur(v.price)]); });
+    Object.values(C.LOCKS).forEach(v => { if (v.price) rows.push([v.label, C.eur(v.price)]); });
+    Object.values(C.SAFETY).forEach(v => { if (v.price) rows.push([v.label, C.eur(v.price)]); });
+    Object.values(C.CONTROLS).forEach(v => rows.push([v.label, C.eur2(v.price)]));
+    rows.push(['RAL nach Wahl pro Seite', '34 € / m²'], ['Metallic RAL 9006/9007 pro Seite', '96 € / m²'], ['Torsionsfedern 50.000 Zyklen (601)', '140 €'], ['Ziffern schwarz, 1 bis 5 Stück', '31,37 € / St.']);
+    $('optList').innerHTML = rows.map(([l, p]) => `<li><span>${l}</span><strong>${p}</strong></li>`).join('');
+  </script>
+</body>
+</html>

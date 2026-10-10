@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kontakt · Loading Systems Deutschland GmbH, Hofheim am Taunus</title>
+  <meta name="description" content="Kontakt zu Loading Systems Deutschland: Wickerer Weg 13-15, 65719 Hofheim am Taunus, +49 (0)69 339 996 90, info@loading-systems.de. Konfiguration aus dem Dock Studio anfragen.">
+  <link rel="icon" type="image/png" href="assets/img/favicon.png"><meta name="theme-color" content="#e00034">
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/style.css?v=1">
+</head>
+<body>
+  <div data-include="partials/header.html" data-root=""></div>
+  <main>
+    <section class="page-hero"><div class="container"><span class="eyebrow">Kontakt</span><h1>Sprechen wir über Ihre Verladestelle.</h1><p class="lead">Senden Sie uns Ihre Konfiguration aus dem Dock Studio oder Ihre Frage. Unsere Service-Spezialisten und Techniker melden sich umgehend.</p></div></section>
+    <section class="block"><div class="container grid-2" style="align-items:start">
+      <form id="contactForm" onsubmit="event.preventDefault(); const b=encodeURIComponent(document.getElementById('message').value); location.href='mailto:info@loading-systems.de?subject=' + encodeURIComponent('Anfrage Dock Studio') + '&body=' + b;">
+        <div class="form-field"><label for="name">Name</label><input id="name" name="name" type="text" required autocomplete="name"></div>
+        <div class="form-field"><label for="company">Firma</label><input id="company" name="company" type="text" autocomplete="organization"></div>
+        <div class="form-field"><label for="email">E-Mail</label><input id="email" name="email" type="email" required autocomplete="email"></div>
+        <div class="form-field"><label for="message">Nachricht / Konfiguration</label><textarea id="message" name="message"></textarea></div>
+        <button class="btn btn-primary" type="submit">Anfrage senden</button>
+        <p style="font-size:.82rem;color:var(--text-soft);margin-top:.8rem">Das Formular öffnet Ihr E-Mail-Programm mit der Nachricht an info@loading-systems.de.</p>
+      </form>
+      <div>
+        <h2>Loading Systems Deutschland GmbH</h2>
+        <p>Wickerer Weg 13-15<br>65719 Hofheim am Taunus<br>Deutschland</p>
+        <p>T: <a href="tel:+496933999690">+49 (0)69 339 996 90</a><br>@: <a href="mailto:info@loading-systems.de">info@loading-systems.de</a><br>W: <a href="https://www.loading-systems.de">www.loading-systems.de</a></p>
+        <p style="color:var(--text-soft)">Amtsgericht München, HRB 276340 · Geschäftsführer: Robin Reese, Oliver Degen</p>
+      </div>
+    </div></section>
+  </main>
+  <div data-include="partials/footer.html" data-root=""></div>
+  <script src="assets/js/main.js"></script>
+</body>
+</html>
