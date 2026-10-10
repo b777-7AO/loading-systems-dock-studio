@@ -39,18 +39,18 @@ export function createMaterials(renderer, manager) {
   const ribN = ribNormal(); const fine = tx('finestructure_n.jpg', { tile: .25 }); const paintR = tx('paint_r.jpg', { tile: .8 });
   const M = {
     // building
-    facade: std({ color: 0xd8dadb, roughness: .55, metalness: .25, normalMap: ribN, normalScale: new THREE.Vector2(.6, .6), lightMap: noiseTex(.86, 1, 9), lightMapIntensity: 1 }),
-    facadeInner: std({ color: 0xe3e5e6, roughness: .7, metalness: .1, normalMap: ribN, normalScale: new THREE.Vector2(.5, .5) }),
-    plinth: std({ ...pbr('concrete', 1.6), roughness: 1, color: 0xb9bab6 }),
+    facade: std({ ...pbr('hf_facade', 1.2), color: 0xe6e8e9, roughness: .6, metalness: .2, normalScale: new THREE.Vector2(.7, .7), lightMap: noiseTex(.86, 1, 9), lightMapIntensity: 1 }),
+    facadeInner: std({ ...pbr('hf_facade', 1.2), color: 0xeceeee, roughness: .7, metalness: .1, normalScale: new THREE.Vector2(.5, .5) }),
+    plinth: std({ ...pbr('hf_dockwall', 2.4), roughness: 1, color: 0xc4c5c1, normalScale: new THREE.Vector2(.8, .8) }),
     concrete: std({ ...pbr('concrete', 2.2), roughness: 1, color: 0xc7c8c4, lightMap: noiseTex(.8, 1, 12), lightMapIntensity: 1 }),
-    floor: std({ ...pbr('garagefloor', 3.5), roughness: .75, color: 0xd2d3cf, lightMap: noiseTex(.78, 1, 10), lightMapIntensity: 1 }),
-    asphalt: std({ ...pbr('asphalt', 4.5), roughness: 1, color: 0x8e8f90, lightMap: noiseTex(.7, 1, 16), lightMapIntensity: 1 }),
+    floor: std({ ...pbr('hf_whfloor', 4.2), roughness: .6, color: 0xdcdcd8, normalScale: new THREE.Vector2(.4, .4), lightMap: noiseTex(.78, 1, 10), lightMapIntensity: 1 }),
+    asphalt: std({ ...pbr('hf_asphalt2', 5.5), roughness: .95, color: 0x9a9b9c, normalScale: new THREE.Vector2(.6, .6), lightMap: noiseTex(.7, 1, 16), lightMapIntensity: 1 }),
     pavers: std({ ...pbr('pavers', 2), roughness: 1 }),
     lawn: std({ map: tx('lawn_d.jpg', { srgb: true, tile: 2.6 }), normalMap: tx('lawn_n.jpg', { tile: 2.6 }), roughness: 1, lightMap: noiseTex(.62, 1, 18), lightMapIntensity: 1 }),
     hedge: std({ map: tx('hedge_d.jpg', { srgb: true, tile: 1.1 }), normalMap: tx('hedge_n.jpg', { tile: 1.1 }), roughness: 1 }),
     gravel: std({ ...pbr('gravel', 1.1), roughness: 1 }),
     steel: std({ color: 0x9a9ea2, metalness: .85, roughness: .4 }),
-    galv: std({ color: 0xaab0b5, metalness: .8, roughness: .45, normalMap: fine, normalScale: new THREE.Vector2(.3, .3) }),
+    galv: std({ ...pbr('hf_galv', .6), color: 0xd0d4d7, metalness: .85, roughness: .5, normalScale: new THREE.Vector2(.35, .35) }),
     dark: std({ color: 0x25282b, metalness: .5, roughness: .55 }),
     black: std({ color: 0x141414, roughness: .85 }),
     yellow: std({ color: 0xf2c200, roughness: .5 }),
@@ -65,17 +65,17 @@ export function createMaterials(renderer, manager) {
     mesh: std({ color: 0xb8bcc0, metalness: .7, roughness: .5, side: THREE.DoubleSide, transparent: true, opacity: .55 }),
     pvc: phys({ color: 0xdfe8ee, roughness: .25, transmission: .55, thickness: .01, transparent: true, opacity: .75, side: THREE.DoubleSide }),
     // door leaf (set per state)
-    door: phys({ color: 0xe7ebe3, roughness: .55, metalness: .25, normalMap: ribN, normalScale: new THREE.Vector2(.9, .9), roughnessMap: paintR, clearcoat: .15, clearcoatRoughness: .5 }),
+    door: phys({ ...pbr('hf_stucco', .9), color: 0xe7ebe3, roughness: .62, metalness: .2, normalScale: new THREE.Vector2(.55, .55), clearcoat: .12, clearcoatRoughness: .5 }),
     doorEdge: std({ color: 0x9fa4a8, metalness: .6, roughness: .5 }),
-    doorInner: std({ color: 0xe6e8e6, roughness: .65, metalness: .2, normalMap: ribN, normalScale: new THREE.Vector2(.6, .6) }),
+    doorInner: std({ ...pbr('hf_stucco', .9), color: 0xe6e8e6, roughness: .65, metalness: .2, normalScale: new THREE.Vector2(.45, .45) }),
     curtainFabric: std({ color: 0xf0f2f1, roughness: .9, side: THREE.DoubleSide }),
     // dock
-    shelter: std({ color: 0x1c1d1f, roughness: .92 }),
+    shelter: std({ ...pbr('hf_pvcblack', .5), color: 0x9a9a9a, roughness: .8, normalScale: new THREE.Vector2(.6, .6) }),
     shelterStripe: std({ color: 0xf4f4f0, roughness: .8 }),
-    cushion: std({ color: 0x212224, roughness: .95 }),
+    cushion: std({ ...pbr('hf_pvcblack', .5), color: 0xa6a6a6, roughness: .85, normalScale: new THREE.Vector2(.6, .6) }),
     levellerPlate: std({ color: 0x2e3133, metalness: .55, roughness: .55, normalMap: fine, normalScale: new THREE.Vector2(.9, .9) }),
     levellerFrame: std({ color: 0x3c4043, metalness: .7, roughness: .45 }),
-    bumperRubber: std({ color: 0x1b1b1b, roughness: .95 }),
+    bumperRubber: std({ ...pbr('hf_rubber', .5), color: 0xb0b0b0, roughness: .95, normalScale: new THREE.Vector2(1, 1) }),
     // vehicles
     truckWhite: phys({ color: 0xf4f5f3, roughness: .35, metalness: .1, clearcoat: .6, clearcoatRoughness: .25 }),
     truckRed: phys({ color: 0xc8102e, roughness: .35, metalness: .15, clearcoat: .7, clearcoatRoughness: .2 }),
@@ -94,11 +94,10 @@ export function createMaterials(renderer, manager) {
     sign: std({ color: 0xffffff, roughness: .6 }),
   };
   [M.facade.lightMap, M.concrete.lightMap].forEach(() => {});
-  M.facade.normalMap.repeat.set(1 / 1.0, 1 / 1.0); M.facade.normalMap.wrapS = M.facade.normalMap.wrapT = THREE.RepeatWrapping;
   /* door leaf from configuration */
   function applyDoor(ral, { kind, metallic } = {}) {
     const d = M.door; d.color.set(ral); d.clearcoat = metallic ? .5 : .15; d.metalness = metallic ? .55 : .25; d.roughness = metallic ? .4 : .55;
-    d.normalMap = kind === 'rollup' ? null : ribN; d.needsUpdate = true;
+    d.needsUpdate = true;
     M.doorInner.color.set(ral).lerp(new THREE.Color(0xffffff), .25);
   }
   return { M, tx, pbr, noiseTex, ribN, applyDoor };

@@ -8,9 +8,10 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import * as C from './cfg/catalog.js';
 import { createMaterials, TEX } from './cfg/materials.js';
-import { buildWarehouse, buildStudio, dispose, DOCK_H, ease } from './cfg/scene.js';
+import { buildWarehouse, buildStudio, dispose, DOCK_H, ease, registerParts, mergeStatic } from './cfg/scene.js';
 
 const $ = id => document.getElementById(id);
 const q = new URLSearchParams(location.search);
@@ -49,7 +50,7 @@ readHash();
 const canvas = $('cfgCanvas'), wrap = $('canvasWrap');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
 const useAO = !q.has('noao') && window.matchMedia('(pointer: fine)').matches && Math.min(innerWidth, innerHeight) > 600;
-renderer.setPixelRatio(Math.min(devicePixelRatio, useAO ? 1.75 : 2)); renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5)); renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.0; renderer.outputColorSpace = THREE.SRGBColorSpace;
 let assetsReady = false; const manager = new THREE.LoadingManager(() => { assetsReady = true; finishLoading(); });
 const mats = createMaterials(renderer, manager); const { M } = mats;
@@ -66,14 +67,14 @@ let composer = null, aoPass = null, aoOn = useAO;
 if (useAO) {
   composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(1, 1, { samples: 4, type: THREE.HalfFloatType }));
   composer.addPass(new RenderPass(scene, camera));
-  aoPass = new AOPass(scene, camera, 1, 1, {}, { radius: .4, distanceExponent: 1, thickness: 1, scale: 1, samples: 16, distanceFallOff: 1, screenSpaceRadius: false }, { lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 4, radiusExponent: 1, rings: 2, samples: 16 });
+  aoPass = new AOPass(scene, camera, 1, 1, {}, { radius: .4, distanceExponent: 1, thickness: 1, scale: 1, samples: 8, distanceFallOff: 1, screenSpaceRadius: false }, { lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 4, radiusExponent: 1, rings: 2, samples: 8 });
   aoPass.output = GTAOPass.OUTPUT.Default; aoPass.blendIntensity = .9; composer.addPass(aoPass);
   const lens = new ShaderPass({ uniforms: { tDiffuse: { value: null }, uTime: { value: 0 } }, vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
     fragmentShader: 'uniform sampler2D tDiffuse; uniform float uTime; varying vec2 vUv; float hash(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233)) + uTime) * 43758.5453); } void main(){ vec4 c = texture2D(tDiffuse, vUv); vec2 d = vUv - .5; float v = 1.0 - .26 * smoothstep(.25, 1.1, dot(d, d) * 2.2); float g = (hash(vUv * 1200.0) - .5) * .01; gl_FragColor = vec4(c.rgb * v + g, c.a); }' });
   composer.addPass(lens); composer.addPass(new OutputPass()); window.__lens = lens;
 }
 function draw() { if (composer && aoOn) composer.render(); else renderer.render(scene, camera); }
-const sun = new THREE.DirectionalLight(0xfff1dc, 3.2); sun.position.copy(sunDir).multiplyScalar(80); sun.castShadow = true; sun.shadow.mapSize.set(4096, 4096);
+const sun = new THREE.DirectionalLight(0xfff1dc, 3.2); sun.position.copy(sunDir).multiplyScalar(80); sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048);
 Object.assign(sun.shadow.camera, { near: 5, far: 220, left: -60, right: 60, top: 60, bottom: -60 }); sun.shadow.camera.updateProjectionMatrix(); sun.shadow.bias = -.0003; sun.shadow.normalBias = .04;
 const fill = new THREE.DirectionalLight(0xeaf2ff, .5); fill.position.set(-20, 12, 40);
 const hemi = new THREE.HemisphereLight(0xdde8ff, 0x6f7a63, .08); scene.add(sun, fill, hemi);
@@ -89,7 +90,7 @@ function buildWorld() {
   if (wh) { world.remove(wh.group); dispose(wh.group); wh = null; } if (studioGroup) { world.remove(studioGroup); dispose(studioGroup); studioGroup = null; }
   const ral = C.RAL.find(r => r.id === state.ral); mats.applyDoor(ral.hex, { kind: C.DOORS[state.door].kind, metallic: ral.metallic });
   const studio = state.mode === 'studio';
-  wh = buildWarehouse({ mats, st: state, studio }); world.add(wh.group); dims = wh.dims;
+  wh = buildWarehouse({ mats, st: state, studio }); dims = wh.dims; window.__mergeInfo = mergeStatic(wh.group); world.add(wh.group);
   if (studio) { studioGroup = buildStudio({ M, dims }); world.add(studioGroup); }
   scene.background = studio ? new THREE.Color(0xe9eaec) : sky; scene.environment = studio ? studioEnv : skyEnv; scene.fog = studio ? null : new THREE.Fog(0xc9d2da, 120, 320);
   scene.environmentIntensity = studio ? .75 : .55; sun.visible = !studio; fill.visible = !studio; hemi.visible = !studio; studioLights.visible = studio; renderer.toneMappingExposure = studio ? 1.1 : 1.0;
@@ -296,8 +297,11 @@ $('shareBtn').addEventListener('click', async () => { const url = location.origi
 $('saveImage').addEventListener('click', () => { draw(); const a = document.createElement('a'); a.href = renderer.domElement.toDataURL('image/jpeg', .92); a.download = `loading-systems-dock-${state.door}-${state.w}x${state.h}.jpg`; a.click(); });
 
 /* ------------------------------------------------------------------ Go */
-window.__cfg = { camera, controls, state, scene, world, dims: () => dims, update, setMode, goView, setDock, applyDocking, THREE, price: priceDoor };
-buildWorld(); renderUI(); setMode(state.mode === 'studio' ? 'studio' : 'yard'); goView(q.get('view') || (state.mode === 'studio' ? 'studio' : 'yard'), true);
-if (q.get('dock') === '1') { docking = dockTarget = 1; applyDocking(1); $('dockRange').value = 100; $('dockBtn').querySelector('span').textContent = 'Lkw abfahren'; }
-history.replaceState(null, '', location.pathname + location.search + hash());
-(async () => { try { await renderer.compileAsync(scene, camera); } catch (e) { } loop(performance.now()); })();
+window.__cfg = { camera, controls, state, scene, world, renderer, dims: () => dims, update, setMode, goView, setDock, applyDocking, THREE, price: priceDoor };
+function start() {
+  buildWorld(); renderUI(); setMode(state.mode === 'studio' ? 'studio' : 'yard'); goView(q.get('view') || (state.mode === 'studio' ? 'studio' : 'yard'), true);
+  if (q.get('dock') === '1') { docking = dockTarget = 1; applyDocking(1); $('dockRange').value = 100; $('dockBtn').querySelector('span').textContent = 'Lkw abfahren'; }
+  history.replaceState(null, '', location.pathname + location.search + hash());
+  (async () => { try { await renderer.compileAsync(scene, camera); } catch (e) { } loop(performance.now()); })();
+}
+new GLTFLoader(manager).load('assets/models/door_parts.glb', g => { registerParts(g.scene); start(); }, undefined, err => { console.warn('door parts missing', err); start(); });

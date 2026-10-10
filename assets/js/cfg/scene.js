@@ -2,6 +2,7 @@
    Units metres. X along the facade, Y up, +Z = yard (outside). Yard level y = 0, warehouse floor y = DOCK_H. Facade front face at z = 0. */
 import * as THREE from 'three';
 import { DOORS, LEVELLERS, SHELTERS, BUMPERS, TRUCKS, WINDOWS, FULLVISION, LIFT, LIFT_620 } from './catalog.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 export const DOCK_H = 1.2;      // dock height above yard
 export const PITCH = 4.2;       // bay pitch
@@ -29,50 +30,89 @@ export function wall(w, h, t, openings, mat) {
   const uv = g.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i), uv.getY(i));   // metres already
   const m = new THREE.Mesh(g, mat); m.castShadow = true; m.receiveShadow = true; return m;
 }
-export function dispose(obj) { obj.traverse(o => { if (o.geometry) o.geometry.dispose(); }); }
+/* merge every static single-material mesh below `root` into one mesh per material (dynamic sub-trees are left alone) */
+export function mergeStatic(root, { keepDynamic = true } = {}) {
+  root.updateMatrixWorld(true); const inv = new THREE.Matrix4().copy(root.matrixWorld).invert(); const buckets = new Map(); const remove = []; const rel = new THREE.Matrix4();
+  const isDynamic = o => { if (!keepDynamic) return false; for (let p = o; p && p !== root; p = p.parent) if (p.userData.dynamic) return true; return false; };
+  root.traverse(o => {
+    if (!o.isMesh || Array.isArray(o.material) || o === root || isDynamic(o) || o.userData.noMerge) return;
+    const key = o.material.uuid + '|' + (o.castShadow ? 1 : 0) + (o.receiveShadow ? 1 : 0);
+    let g = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone();
+    for (const name of Object.keys(g.attributes)) if (!['position', 'normal', 'uv'].includes(name)) g.deleteAttribute(name);
+    if (!g.attributes.uv) g.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(g.attributes.position.count * 2), 2));
+    if (!g.attributes.normal) g.computeVertexNormals();
+    g.applyMatrix4(rel.multiplyMatrices(inv, o.matrixWorld));
+    if (!buckets.has(key)) buckets.set(key, { mat: o.material, cast: o.castShadow, recv: o.receiveShadow, geos: [] });
+    buckets.get(key).geos.push(g); remove.push(o);
+  });
+  remove.forEach(o => { o.parent.remove(o); if (!o.userData.shared) o.geometry.dispose(); });
+  let n = 0; buckets.forEach(b => { const merged = mergeGeometries(b.geos, false); b.geos.forEach(g => g.dispose()); if (!merged) { console.warn('merge failed', b.mat.name, b.geos.length); return; } const m = new THREE.Mesh(merged, b.mat); m.castShadow = b.cast; m.receiveShadow = b.recv; root.add(m); n++; });
+  return { buckets: buckets.size, merged: n, removed: remove.length };
+}
+export function dispose(obj) { obj.traverse(o => { if (o.geometry && !o.userData.shared) o.geometry.dispose(); }); }
+/* Blender hardware library (assets/models/door_parts.glb): name -> Object3D template */
+export const PARTS = {};
+export function registerParts(gltfScene) {
+  gltfScene.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; o.userData.shared = true; o.material.side = THREE.FrontSide; } });
+  gltfScene.children.forEach(c => { c.position.set(0, 0, 0); PARTS[c.name] = c; });
+}
+export function part(name, x = 0, y = 0, z = 0, opt = {}) {
+  const t = PARTS[name]; if (!t) return null; const o = t.clone(); o.position.set(x, y, z); if (opt.rotY) o.rotation.y = opt.rotY; if (opt.rotX) o.rotation.x = opt.rotX; if (opt.scale) o.scale.set(opt.scale[0], opt.scale[1], opt.scale[2]);
+  o.traverse(m => { if (m.isMesh) { m.userData.shared = true; if (opt.shadow === false) m.castShadow = false; } }); return o;
+}
+/* finger-safe sandwich panel: tongue on top, groove below, extruded along X. Front face at +z (z = t), back face at z = 0, bottom at y = 0 */
+export function panelGeometry(w, H, t = .04) {
+  const r = t / 2, s = new THREE.Shape();
+  // outline 0..H on the faces, tongue above H (to H + r), groove cut into the bottom edge (0..r): stacked panels interlock without a gap
+  s.moveTo(0, 0); s.lineTo(0, H); s.absarc(t / 2, H, r, Math.PI, 0, true); s.lineTo(t, 0); s.absarc(t / 2, 0, r, 0, Math.PI, false); s.closePath();
+  const g = new THREE.ExtrudeGeometry(s, { depth: w, bevelEnabled: false, curveSegments: 10 }); g.rotateY(-Math.PI / 2); g.translate(w / 2, 0, 0);
+  // uv in metres: ExtrudeGeometry already uses positions, scale front/back walls to 1 m tiles
+  return g;
+}
 
 /* ---------------------------------------------------------------- Door leaf per type */
-function sectionalLeaf(w, h, ph, st, M, catalogWindows) {
+function sectionalLeaf(w, h, ph, st, M) {
   const g = new THREE.Group(); const n = Math.max(2, Math.round(h / ph)); const H = h / n; const parts = [];
-  const mats = [M.doorEdge, M.doorEdge, M.doorEdge, M.doorEdge, M.door, M.doorInner];
+  const t = st.panel === 'iso80' ? .08 : .04;
   const fvIndex = st.fullvision !== 'none' ? n - 2 : -1;
   const winIndex = st.windows !== 'none' ? (fvIndex === n - 2 ? n - 3 : n - 2) : -1;
+  const edge = H * .5; const nCentre = Math.max(0, Math.round(w / 1.2) - 1);
   for (let i = 0; i < n; i++) {
-    const p = new THREE.Group();
+    const p = new THREE.Group(); p.userData.dynamic = true;
     if (i === fvIndex) {
-      // Full-Vision section: aluminium frame with glazing bars every ~600 mm
       const fv = FULLVISION[st.fullvision]; const nb = Math.max(2, Math.round(w / .6));
-      p.add(box(w, .05, .045, M.galv, 0, H / 2 - .025, 0)); p.add(box(w, .05, .045, M.galv, 0, -H / 2 + .025, 0));
-      for (let k = 0; k <= nb; k++) p.add(box(.045, H - .1, .045, M.galv, -w / 2 + k * (w / nb), 0, 0));
-      const pane = box(w - .06, H - .1, .01, fv.glass === 'mesh' ? M.mesh : M.glass, 0, 0, 0, { shadow: false }); p.add(pane);
+      p.add(box(w, .05, t + .005, M.galv, 0, H / 2 - .025, t / 2)); p.add(box(w, .05, t + .005, M.galv, 0, -H / 2 + .025, t / 2));
+      for (let k = 0; k <= nb; k++) p.add(box(.045, H - .1, t + .005, M.galv, -w / 2 + k * (w / nb), 0, t / 2));
+      p.add(box(w - .06, H - .1, .01, fv.glass === 'mesh' ? M.mesh : M.glass, 0, 0, t / 2, { shadow: false }));
     } else {
-      const body = new THREE.Mesh(new THREE.BoxGeometry(w, H - .006, .04), mats); body.castShadow = true; body.receiveShadow = true; p.add(body);
-      // panel joint groove (dark line at the top of every panel)
-      p.add(box(w, .008, .006, M.dark, 0, H / 2 - .004, .02, { shadow: false }));
+      const body = new THREE.Mesh(panelGeometry(w, H, t), [M.doorEdge, M.door]); body.position.set(0, -H / 2, -t / 2); body.castShadow = true; body.receiveShadow = true; p.add(body);
+      p.add(box(w, .006, .004, M.dark, 0, H / 2 - .003, t / 2 + .003, { shadow: false }));
       if (i === winIndex) {
         const win = WINDOWS[st.windows]; const count = Math.max(1, Math.min(4, Math.floor(w / 1.05))); const gap = w / count;
         for (let k = 0; k < count; k++) {
-          const x = -w / 2 + gap * (k + .5);
-          const frame = win.shape === 'oval' ? new THREE.Mesh(new THREE.CylinderGeometry(1, 1, .05, 32).scale(win.w / 2 + .02, 1, win.h / 2 + .02), M.dark) : box(win.w + .04, win.h + .04, .05, M.dark, 0, 0, 0, { shadow: false });
-          if (win.shape === 'oval') { frame.rotation.x = Math.PI / 2; }
-          frame.position.set(x, 0, 0); frame.castShadow = false; p.add(frame);
-          const glass = win.shape === 'oval' ? new THREE.Mesh(new THREE.CylinderGeometry(1, 1, .056, 32).scale(win.w / 2, 1, win.h / 2), M.glass) : box(win.w, win.h, .056, M.glass, 0, 0, 0, { shadow: false });
-          if (win.shape === 'oval') glass.rotation.x = Math.PI / 2; glass.position.set(x, 0, 0); glass.castShadow = false; p.add(glass);
+          const x = -w / 2 + gap * (k + .5); const frame = part(win.shape === 'oval' ? 'window_oval' : 'window_rect', x, 0, t / 2 - .01);
+          if (frame) p.add(frame); else p.add(box(win.w + .04, win.h + .04, t + .02, M.dark, x, 0, 0, { shadow: false }));
+          const glass = win.shape === 'oval' ? new THREE.Mesh(new THREE.CylinderGeometry(1, 1, .012, 32).scale(win.w / 2, 1, win.h / 2), M.glass) : box(win.w, win.h, .012, M.glass, 0, 0, 0, { shadow: false });
+          if (win.shape === 'oval') glass.rotation.x = Math.PI / 2; glass.position.set(x, 0, t / 2 - .01); glass.castShadow = false; p.add(glass);
         }
       }
+      // hinges with rollers at both edges, centre hinges along the joint (on the inside face)
+      if (i < n - 1) { const y = H / 2; const l = part('side_hinge', -w / 2 + .03, y, -t / 2 - .002, { rotY: Math.PI }); const r = part('side_hinge', w / 2 - .03, y, -t / 2 - .002, { rotY: Math.PI });
+        if (l) p.add(l); if (r) { r.scale.x = -1; p.add(r); } for (let k = 1; k <= nCentre; k++) { const c = part('centre_hinge', -w / 2 + k * (w / (nCentre + 1)), y, -t / 2 - .002, { rotY: Math.PI }); if (c) p.add(c); } }
     }
     p.position.y = H * i + H / 2; g.add(p); parts.push({ p, y0: H * i + H / 2 });
   }
-  // wicket door outline + handle on panels 0..k
+  // bottom panel: seal profile, flush handle, Loading Systems logo plate; wicket outline
+  const bottom = parts[0].p;
+  const seal = part('bottom_seal', 0, -H / 2 + .01, 0, { scale: [w, 1, 1], shadow: false }); if (seal) bottom.add(seal); else bottom.add(box(w, .03, .05, M.black, 0, -H / 2 + .015, 0, { shadow: false }));
+  const handle = part('flush_handle', w * .22, -H / 2 + .95 - parts[0].y0 + H / 2, t / 2 + .002); if (handle) { handle.position.y = Math.min(H / 2 - .1, .95 - H / 2); bottom.add(handle); }
+  const lp = part('logo_plate', w / 2 - .32, -H / 2 + .14, t / 2 + .004, { shadow: false }); if (lp) bottom.add(lp);
   if (st.wicket && st.wicket !== 'none') {
     const wd = .9, hd = Math.min(2.0, h - .3), x = Math.min(w / 2 - .7, .9);
-    g.add(box(.012, hd, .05, M.dark, x - wd / 2, hd / 2, .02, { shadow: false })); g.add(box(.012, hd, .05, M.dark, x + wd / 2, hd / 2, .02, { shadow: false })); g.add(box(wd, .012, .05, M.dark, x, hd, .02, { shadow: false }));
-    g.add(box(.03, .14, .03, M.steel, x - wd / 2 + .1, 1.05, .04, { shadow: false }));
-    g.userData.wicket = { x, wd, hd };
+    g.add(box(.012, hd, t + .02, M.dark, x - wd / 2, hd / 2, t / 2 - .01, { shadow: false })); g.add(box(.012, hd, t + .02, M.dark, x + wd / 2, hd / 2, t / 2 - .01, { shadow: false })); g.add(box(wd, .012, t + .02, M.dark, x, hd, t / 2 - .01, { shadow: false }));
+    g.add(box(.03, .14, .03, M.steel, x - wd / 2 + .1, 1.05, t / 2 + .02, { shadow: false }));
   }
-  // bottom rubber seal, flush handle
-  g.add(box(w, .03, .05, M.black, 0, .015, 0, { shadow: false }));
-  if (st.handle !== false) g.add(box(.16, .06, .012, M.dark, w * .25, .9, .025, { shadow: false }));
+  parts.forEach(({ p }) => mergeStatic(p, { keepDynamic: false }));
   g.userData.parts = parts; g.userData.H = H; g.userData.n = n; return g;
 }
 function curtainLeaf(w, h, M, slats = false) {
@@ -104,7 +144,7 @@ export function buildDoor({ M, st, w, h }) {
   const hl = Math.min(d.priced === 'hs620' ? { SL: 0, HL750: .75, HL1370: 1.37, HL2000: 2.0, VL: 99 }[st.lift620 || 'SL'] : lift.hl, HALL_H - h - .6);
   const vertical = hl >= 99;
   if (d.kind === 'sectional') {
-    const leaf = sectionalLeaf(w, h, d.panel, st, M); leaf.position.set(0, 0, zL); g.add(leaf);
+    const leaf = sectionalLeaf(w, h, d.panel, st, M); leaf.position.set(0, 0, zL); leaf.userData.dynamic = true; g.add(leaf);
     const parts = leaf.userData.parts, H = leaf.userData.H;
     const R = vertical ? 0 : .42, Ht = h + .12 + (vertical ? h : hl);
     // tracks: vertical angles + horizontal rails (or vertical only)
@@ -115,18 +155,18 @@ export function buildDoor({ M, st, w, h }) {
     // torsion spring shaft above the opening (inside)
     g.add(cyl(.028, w + .3, M.galv, 0, Ht + .2, zL - .18, 12).rotateZ(Math.PI / 2));
     g.add(cyl(.085, Math.min(1.6, w * .45), M.dark, 0, Ht + .2, zL - .18, 14).rotateZ(Math.PI / 2));
-    if (d.motor || st.operation === 'motor') { g.add(box(.26, .3, .36, M.galv, w / 2 + .32, Ht + .2, zL - .18)); g.add(box(.32, .42, .14, M.white, w / 2 + .9, h * .55, zL - .02)); }
+    if (d.motor || st.operation === 'motor') { const mu = part('motor_unit', w / 2 + .36, Ht + .2, zL - .18, { rotX: -Math.PI / 2 }); if (mu) g.add(mu); else g.add(box(.26, .3, .36, M.galv, w / 2 + .32, Ht + .2, zL - .18)); }
     const smax = Ht - parts[0].y0 + R * Math.PI / 2 + .12;
     animate = t => { const s = ease(t) * smax; parts.forEach(({ p, y0 }) => { const d1 = Ht - y0;
       if (vertical || s < d1) { p.position.set(0, y0 + s, 0); p.rotation.x = 0; }
       else if (s < d1 + R * Math.PI / 2) { const a = (s - d1) / R; p.position.set(0, Ht + R * Math.sin(a), -R * (1 - Math.cos(a))); p.rotation.x = -a; }
       else { p.position.set(0, Ht + R, -R - (s - d1 - R * Math.PI / 2)); p.rotation.x = -Math.PI / 2; } }); };
   } else if (d.kind === 'rollup' || d.kind === 'roller') {
-    const leaf = curtainLeaf(w, h, M, d.kind === 'roller'); leaf.position.set(0, 0, zL); g.add(leaf);
+    const leaf = curtainLeaf(w, h, M, d.kind === 'roller'); leaf.position.set(0, 0, zL); leaf.userData.dynamic = true; g.add(leaf);
     const sheet = leaf.userData.sheet;
     const rollR = d.kind === 'roller' ? .22 : .16; const hood = box(w + .5, rollR * 2 + .14, rollR * 2 + .14, M.galv, 0, h + rollR + .1, zL - .02); g.add(hood);
     [-1, 1].forEach(s => g.add(box(.12, h + .1, .14, M.galv, s * (w / 2 + .09), (h + .1) / 2, zL - .02)));
-    if (d.kind === 'rollup') { g.add(box(.3, .46, .22, M.galv, w / 2 + .35, h + rollR + .1, zL - .02)); g.add(box(.32, .42, .14, M.white, w / 2 + .9, h * .55, zL - .02)); }
+    if (d.kind === 'rollup') { const mu = part('motor_unit', w / 2 + .4, h + rollR + .1, zL - .02, { rotX: -Math.PI / 2 }); if (mu) g.add(mu); else g.add(box(.3, .46, .22, M.galv, w / 2 + .35, h + rollR + .1, zL - .02)); }
     animate = t => { const e = ease(t); const k = Math.max(.015, 1 - e); sheet.scale.y = k; sheet.position.y = h - (h * k) / 2; leaf.children[leaf.children.length - 1].position.y = h - h * k + .03; };
   } else if (d.kind === 'strips') {
     const leaf = stripsLeaf(w, h, M); leaf.position.set(0, 0, zL); g.add(leaf);
@@ -145,19 +185,19 @@ export function buildLeveller({ M, st, w, bedH }) {
   pit.add(box(pw + .3, .74, .15, M.plinth, 0, -.37, -(len + .3) + .075));
   // pit frame with hazard marking flush in the floor
   pit.add(box(pw + .3, .004, len + .3, M.yellowStripe, 0, .003, -(len + .3) / 2 + .0, { shadow: false })); pit.add(box(pw + .14, .006, len + .14, M.dark, 0, .004, -(len + .3) / 2 + .0, { shadow: false }));
-  const hinge = new THREE.Group(); hinge.position.set(0, .012, -len); pit.add(hinge);
+  const hinge = new THREE.Group(); hinge.position.set(0, .012, -len); hinge.userData.dynamic = true; pit.add(hinge);
   const plate = box(pw, .06, len, M.levellerPlate, 0, 0, len / 2); hinge.add(plate);
   // anti-slip chequer stripes along the plate edges
   [-1, 1].forEach(s => hinge.add(box(.08, .062, len, M.yellowStripe, s * (pw / 2 - .04), 0, len / 2, { shadow: false })));
   hinge.add(box(pw, .4, .08, M.levellerFrame, 0, -.24, len - .04));   // front beam
   const cylm = cyl(.06, len * .6, M.levellerFrame, 0, -.3, len * .5, 10); cylm.rotation.x = Math.PI / 2 - .25; hinge.add(cylm);
-  const lipPivot = new THREE.Group(); lipPivot.position.set(0, 0, len); hinge.add(lipPivot);
+  const lipPivot = new THREE.Group(); lipPivot.position.set(0, 0, len); lipPivot.userData.dynamic = true; hinge.add(lipPivot);
   let lip;
   if (L.lip === 'swing') { lip = box(pw - .1, .05, lipLen, M.levellerPlate, 0, 0, lipLen / 2); lipPivot.add(lip); lipPivot.rotation.x = Math.PI / 2 - .08; }
   else { lip = box(pw - .1, .045, lipLen, M.levellerPlate, 0, -.002, lipLen / 2 - lipLen); lipPivot.add(lip); lip.position.z = -lipLen + .05; }
   // side skirts
   [-1, 1].forEach(s => { const sk = box(.02, .7, len, M.dark, s * (pw / 2 - .01), -.36, len / 2, { shadow: false }); hinge.add(sk); });
-  g.add(pit);
+  mergeStatic(hinge); g.add(pit);
   const level = DOCK_H; const target = bedH == null ? DOCK_H : bedH + .02;
   function animate(t) {
     // 0..0.45 rise (plate up 9°), 0.45..0.75 lip out, 0.75..1 lower onto bed
@@ -184,19 +224,23 @@ export function buildShelter({ M, st, w, h }) {
     g.add(box(W, top, .03, frameM, 0, y0 + Hs - top / 2, depth));
     [-1, 1].forEach(s => { const mark = box(.14, .4, .012, M.shelterStripe, s * (W / 2 - side - .5), y0 + Hs - top / 2, depth + .02, { shadow: false }); mark.rotation.z = s * .55; g.add(mark); });
     g.add(box(W + .25, .12, depth + .25, frameM, 0, y0 + Hs + .1, depth / 2 - .05));   // projection cover / rain hood
-    if (S.type === 'inflTop') { const cushion = box(W - .2, .55, depth - .15, M.cushion, 0, y0 + Hs - top - .25, depth / 2); g.add(cushion); cushion.scale.y = .25; animate = t => { const e = ease(t); cushion.scale.y = .25 + .75 * e; cushion.position.y = y0 + Hs - top - .1 - (.55 * cushion.scale.y) / 2; }; }
+    const sl = part('shelter_logo', 0, y0 + Hs - top + .25, depth + .025, { shadow: false }); if (sl) g.add(sl);
+    if (S.type === 'inflTop') { const cushion = box(W - .2, .55, depth - .15, M.cushion, 0, y0 + Hs - top - .25, depth / 2); cushion.userData.dynamic = true; g.add(cushion); cushion.scale.y = .25; animate = t => { const e = ease(t); cushion.scale.y = .25 + .75 * e; cushion.position.y = y0 + Hs - top - .1 - (.55 * cushion.scale.y) / 2; }; }
   } else if (S.type === 'cushion' || S.type === 'foam') {
     const th = S.type === 'foam' ? .42 : .36;
     g.add(box(W, .06, depth, frameM, 0, y0 + Hs, depth / 2)); g.add(box(W, .12, depth + .25, frameM, 0, y0 + Hs + .08, depth / 2 - .05));
     [-1, 1].forEach(s => { g.add(box(th, Hs - top, depth, M.cushion, s * (W / 2 - th / 2), y0 + (Hs - top) / 2, depth / 2)); g.add(box(.06, Hs - top, .1, M.shelterStripe, s * (W / 2 - th / 2), y0 + (Hs - top) / 2, depth + .02, { shadow: false })); });
     g.add(box(W, top, depth * .9, M.cushion, 0, y0 + Hs - top / 2, depth / 2));
+    const sl = part('shelter_logo', 0, y0 + Hs - top / 2, depth * .9 + .02, { shadow: false }); if (sl) g.add(sl);
   } else if (S.type === 'inflatable') {
     g.add(box(W, .06, depth, frameM, 0, y0 + Hs, depth / 2)); g.add(box(W, .12, depth + .25, frameM, 0, y0 + Hs + .08, depth / 2 - .05));
     [-1, 1].forEach(s => g.add(box(.08, Hs, depth, frameM, s * (W / 2 - .04), y0 + Hs / 2, depth / 2)));
-    const bags = [];
-    [-1, 1].forEach(s => { const b = box(.5, Hs - top, depth - .1, M.cushion, s * (W / 2 - .34), y0 + (Hs - top) / 2, depth / 2); b.scale.x = .3; g.add(b); bags.push({ b, ax: 'x', s }); for (let k = 1; k < 7; k++) b.add(box(.52, .03, depth - .08, M.shelterStripe, 0, -(Hs - top) / 2 + k * (Hs - top) / 7, 0, { shadow: false })); });
-    const tb = box(W - .2, .7, depth - .1, M.cushion, 0, y0 + Hs - .4, depth / 2); tb.scale.y = .3; g.add(tb); bags.push({ b: tb, ax: 'y' });
+    const bags = []; const bagRoot = new THREE.Group(); bagRoot.userData.dynamic = true; g.add(bagRoot);
+    [-1, 1].forEach(s => { const b = box(.5, Hs - top, depth - .1, M.cushion, s * (W / 2 - .34), y0 + (Hs - top) / 2, depth / 2); b.scale.x = .3; bagRoot.add(b); bags.push({ b, ax: 'x', s }); for (let k = 1; k < 7; k++) b.add(box(.52, .03, depth - .08, M.shelterStripe, 0, -(Hs - top) / 2 + k * (Hs - top) / 7, 0, { shadow: false })); });
+    const tb = box(W - .2, .7, depth - .1, M.cushion, 0, y0 + Hs - .4, depth / 2); tb.scale.y = .3; bagRoot.add(tb); bags.push({ b: tb, ax: 'y' });
+    bags.forEach(({ b }) => { if (b.children.length) { const sc = b.scale.clone(); b.scale.set(1, 1, 1); mergeStatic(b); b.scale.copy(sc); } });
     g.add(box(.5, .4, .4, M.galv, W / 2 - .3, y0 + Hs - .35, -.0));   // blower
+    const sl = part('shelter_logo', 0, y0 + Hs + .1, depth / 2 + depth / 2 + .08, { shadow: false }); if (sl) g.add(sl);
     animate = t => { const e = .3 + .7 * ease(t); bags.forEach(({ b, ax, s }) => { if (ax === 'x') { b.scale.x = e; b.position.x = s * (W / 2 - .09 - .25 * e); } else { b.scale.y = e; b.position.y = y0 + Hs - .05 - .35 * e; } }); };
   } else if (S.type === 'van') {
     const Wv = w + .6, Hv = h + .3;
@@ -209,7 +253,7 @@ export function buildShelter({ M, st, w, h }) {
 
 /* ---------------------------------------------------------------- Bumpers, restraint, lights, signs */
 export function buildBumpers({ M, st, w }) {
-  const g = new THREE.Group(); const B = BUMPERS[st.bumper] || BUMPERS.rubber; const mat = new THREE.MeshStandardMaterial({ color: B.col, roughness: .9 });
+  const g = new THREE.Group(); const B = BUMPERS[st.bumper] || BUMPERS.rubber; const mat = B.style === 'nylon' ? new THREE.MeshStandardMaterial({ color: B.col, roughness: .5 }) : M.bumperRubber.clone(); if (B.style !== 'nylon') mat.color.set(B.col).multiplyScalar(5.5);
   [-1, 1].forEach(s => {
     const x = s * (w / 2 + .32), y = DOCK_H - .22, z = .18;
     if (B.style === 'nylon') { g.add(box(.3, .5, .12, M.galv, x, y, z - .06)); g.add(box(.26, .46, .07, mat, x, y, z + .03)); }
@@ -224,7 +268,7 @@ export function buildRestraint({ M, st, w }) {
   const g = new THREE.Group(); let animate = () => {};
   if (st.restraint === 'manual') {
     const rail = box(.1, .04, 2.2, M.galv, w * .32, .02, 2.3); g.add(rail);
-    const body = new THREE.Group(); body.position.set(w * .32, .0, 1.6); g.add(body);
+    const body = new THREE.Group(); body.position.set(w * .32, .0, 1.6); body.userData.dynamic = true; g.add(body);
     body.add(box(.5, .3, .6, M.yellow, 0, .17, 0)); body.add(cyl(.02, 1.0, M.galv, -.1, .8, -.2, 8)); body.add(box(.14, .05, .05, M.dark, -.1, 1.3, -.2));
     body.add(box(.04, .04, .04, M.green, .2, .3, .31, { shadow: false }));
     animate = t => { body.position.z = 1.6 + 1.3 * ease(t); };
@@ -233,7 +277,7 @@ export function buildRestraint({ M, st, w }) {
     const tube = cyl(.11, 6.2, M.galv, w * .34, .22, 4.4, 18); tube.rotation.x = Math.PI / 2; g.add(tube);
     const cap = cyl(.115, .18, M.red, w * .34, .22, 7.55, 18); cap.rotation.x = Math.PI / 2; g.add(cap);
     g.add(box(.36, .3, .5, M.galv, w * .34, .15, 1.45)); g.add(box(.32, .1, .4, M.sign, w * .34, .33, 1.45, { shadow: false }));
-    const carriage = new THREE.Group(); carriage.position.set(w * .34, .22, 4.0); g.add(carriage);
+    const carriage = new THREE.Group(); carriage.position.set(w * .34, .22, 4.0); carriage.userData.dynamic = true; g.add(carriage);
     carriage.add(box(.32, .3, .5, M.galv, 0, 0, 0));
     const arm = new THREE.Group(); carriage.add(arm); arm.add(box(.08, .9, .08, M.yellow, -.22, .45, 0)); arm.add(box(.08, .08, .5, M.yellow, -.22, .9, .25)); arm.rotation.x = Math.PI / 2;
     animate = t => { carriage.position.z = 4.0 + 2.4 * seg(t, 0, .6); arm.rotation.x = Math.PI / 2 * (1 - ease(seg(t, .6, 1))); };
@@ -242,7 +286,7 @@ export function buildRestraint({ M, st, w }) {
 }
 export function buildDockLight({ M, st, w, h }) {
   const g = new THREE.Group(); if (st.light === 'none') return { group: g, setOn: () => {} };
-  const arm = new THREE.Group(); arm.position.set(-w / 2 - .25, DOCK_H + h + .25, -WALL_T - .12); g.add(arm);
+  const arm = new THREE.Group(); arm.position.set(-w / 2 - .25, DOCK_H + h + .25, -WALL_T - .12); arm.userData.dynamic = true; g.add(arm);
   arm.add(box(.12, .18, .1, M.dark, 0, 0, 0));
   const a1 = box(.06, .06, 1.0, M.yellow, 0, 0, .5); arm.add(a1);
   const head = new THREE.Group(); head.position.set(0, -.1, 1.0); arm.add(head);
@@ -254,7 +298,7 @@ export function buildDockLight({ M, st, w, h }) {
 }
 export function buildTrafficLight({ M, w, h }) {
   const g = new THREE.Group(); const x = w / 2 + .62, y = DOCK_H + 1.9;
-  g.add(box(.14, .36, .1, M.dark, x, y, .06)); const r = cyl(.045, .03, M.lampOff, x, y + .08, .12, 16); r.rotation.x = Math.PI / 2; const gr = cyl(.045, .03, M.green, x, y - .08, .12, 16); gr.rotation.x = Math.PI / 2; g.add(r, gr);
+  g.add(box(.14, .36, .1, M.dark, x, y, .06)); const r = cyl(.045, .03, M.lampOff, x, y + .08, .12, 16); r.rotation.x = Math.PI / 2; const gr = cyl(.045, .03, M.green, x, y - .08, .12, 16); gr.rotation.x = Math.PI / 2; r.userData.dynamic = true; gr.userData.dynamic = true; g.add(r, gr);
   return { group: g, set: state => { r.material = state === 'red' ? new THREE.MeshStandardMaterial({ color: 0xff2a2a, emissive: 0xff0000, emissiveIntensity: 1.6 }) : M.lampOff; gr.material = state === 'green' ? M.green : M.lampOff; } };
 }
 export function numberPlate({ M, n, w, h }) {
@@ -265,13 +309,14 @@ export function numberPlate({ M, n, w, h }) {
 
 /* ---------------------------------------------------------------- Trucks */
 export function buildTruck({ M, kind }) {
-  const g = new THREE.Group(); const T = TRUCKS[kind]; if (!T || kind === 'none') return { group: g, animate: () => {}, len: 0, bedH: null };
+  const g = new THREE.Group(); g.userData.dynamic = true; const T = TRUCKS[kind]; if (!T || kind === 'none') return { group: g, animate: () => {}, len: 0, bedH: null };
   const wheels = [];
-  const wheel = (x, z, r = .52) => { const t = cyl(r, .32, M.tyre, x, r, z, 24); t.rotation.z = Math.PI / 2; const rim = cyl(r * .55, .34, M.rim, 0, 0, 0, 16); t.add(rim); g.add(t); wheels.push(t); return t; };
+  const wheel = (x, z, r = .52) => { const t = cyl(r, .32, M.tyre, x, r, z, 24); t.rotation.z = Math.PI / 2; t.userData.dynamic = true; const rim = cyl(r * .55, .34, M.rim, 0, 0, 0, 16); t.add(rim); g.add(t); wheels.push(t); return t; };
   if (kind === 'truck') {
     // semi-trailer: rear at z = 0 (door end), length 13.6, bed 1.3 m
     const L = 13.6, W = 2.55, H = 2.7, bed = 1.3;
     const boxm = box(W, H - .06, L, M.trailerBox, 0, bed + .06 + (H - .06) / 2, L / 2); g.add(boxm);
+    [-1, 1].forEach(sd => { const lg = part('logo_plate', sd * (W / 2 + .006), bed + H * .55, L * .55, { rotY: sd * Math.PI / 2, scale: [6, 6, 1], shadow: false }); if (lg) g.add(lg); });
     g.add(box(W, .35, L, M.chassis, 0, bed - .18, L / 2)); g.add(box(W - .04, .06, .5, M.rim, 0, bed + .02, .25)); // rear sill
     // rear doors: centre seam, two locking bars per leaf, hinges, underrun bar, lights
     g.add(box(.02, H - .2, .02, M.dark, 0, bed + H / 2, .02, { shadow: false }));
@@ -284,7 +329,7 @@ export function buildTruck({ M, kind }) {
     g.add(box(W, 2.4, 2.2, M.truckRed, 0, bed + 1.2, cz + 2.4)); g.add(box(W - .2, 1.1, .05, M.glassDark, 0, bed + 1.55, cz + 3.53, { shadow: false }));
     g.add(box(W - .2, .5, 2.2, M.truckRed, 0, bed + 2.55, cz + 2.4)); g.add(box(.8, .35, .3, M.dark, 0, bed + 2.3, cz + 3.5, { shadow: false }));
     [-1, 1].forEach(s => { wheel(s * (W / 2 - .25), cz + 3.0); wheel(s * (W / 2 - .25), cz + .4); });
-    return { group: g, animate: dz => wheels.forEach(w => { w.rotation.x += dz / .52; }), len: L + 5.5, bedH: bed };
+    mergeStatic(g); return { group: g, animate: dz => wheels.forEach(w => { w.rotation.x += dz / .52; }), len: L + 5.5, bedH: bed };
   }
   if (kind === 'rigid') {
     const L = 6.8, W = 2.45, H = 2.5, bed = 1.15;
@@ -292,7 +337,7 @@ export function buildTruck({ M, kind }) {
     g.add(box(W + .1, .08, .2, M.red, 0, bed - .36, .05, { shadow: false }));
     g.add(box(W, 2.2, 1.9, M.truckWhite, 0, bed + 1.0, L + 1.1)); g.add(box(W - .2, .9, .05, M.glassDark, 0, bed + 1.3, L + 2.08, { shadow: false }));
     [1.4, L + 1.0].forEach(z => [-1, 1].forEach(s => wheel(s * (W / 2 - .25), z, .48)));
-    return { group: g, animate: dz => wheels.forEach(w => { w.rotation.x += dz / .48; }), len: L + 2.2, bedH: bed };
+    mergeStatic(g); return { group: g, animate: dz => wheels.forEach(w => { w.rotation.x += dz / .48; }), len: L + 2.2, bedH: bed };
   }
   // van
   const L = 5.4, W = 2.0, H = 1.9, bed = .62;
@@ -301,7 +346,7 @@ export function buildTruck({ M, kind }) {
   g.add(box(W - .2, .5, 2.8, M.glassDark, 0, bed + 1.25, 1.6, { shadow: false }));
   [-1, 1].forEach(s => { g.add(box(.03, H - .3, .04, M.dark, s * .3, bed + H / 2 - .1, .02, { shadow: false })); });
   [1.0, L - 1.1].forEach(z => [-1, 1].forEach(s => wheel(s * (W / 2 - .2), z, .34)));
-  return { group: g, animate: dz => wheels.forEach(w => { w.rotation.x += dz / .34; }), len: L, bedH: bed };
+  mergeStatic(g); return { group: g, animate: dz => wheels.forEach(w => { w.rotation.x += dz / .34; }), len: L, bedH: bed };
 }
 
 /* ---------------------------------------------------------------- Interior props */
@@ -389,10 +434,10 @@ export function buildWarehouse({ mats, st, studio = false }) {
     const dl = buildDockLight({ M, st, w, h }); bay.add(dl.group); rigs.lights.push(dl);
     if (st.trafficLight) { const tl = buildTrafficLight({ M, w, h }); bay.add(tl.group); rigs.traffic.push(tl); }
     if (st.numbers) bay.add(numberPlate({ M, n: i + 1, w, h }));
-    if (st.bollards) [-1, 1].forEach(s => { const b = cyl(.08, 1.1, M.yellow, s * (w / 2 + .85), .55, .55, 16); bay.add(b); [.25, .55, .85].forEach(y => bay.add(cyl(.083, .08, M.black, s * (w / 2 + .85), y, .55, 16, { shadow: false }))); });
+    if (st.bollards) [-1, 1].forEach(s => { const b = part('bollard', s * (w / 2 + .85), 0, .55); if (b) bay.add(b); else bay.add(cyl(.08, 1.1, M.yellow, s * (w / 2 + .85), .55, .55, 16)); });
     if (st.wheelGuides) [-1, 1].forEach(s => { const x = s * 1.55; const t = cyl(.06, 4.6, M.yellow, x, .18, 4.6, 12); t.rotation.x = Math.PI / 2; bay.add(t); [2.5, 6.6].forEach(z => bay.add(cyl(.06, .3, M.yellow, x, .1, z, 12))); });
     // dock control box inside next to the door
-    bay.add(box(.3, .42, .12, M.white, w / 2 + .7, DOCK_H + 1.4, -WALL_T - .07)); bay.add(box(.05, .05, .02, M.green, w / 2 + .62, DOCK_H + 1.5, -WALL_T - .14, { shadow: false })); bay.add(box(.05, .05, .02, M.red, w / 2 + .62, DOCK_H + 1.4, -WALL_T - .14, { shadow: false }));
+    const cb = part('control_box', w / 2 + .7, DOCK_H + 1.4, -WALL_T - .07, { rotY: Math.PI }); if (cb) bay.add(cb); else bay.add(box(.3, .42, .12, M.white, w / 2 + .7, DOCK_H + 1.4, -WALL_T - .07));
     // truck
     if (truckKind !== 'none' && (studio ? true : (st.truckBays === 'all' || i === (st.activeBay || 0)))) {
       const tr = buildTruck({ M, kind: truckKind }); tr.group.position.set(0, 0, 0); bay.add(tr.group); rigs.trucks.push({ ...tr, bay: i });
