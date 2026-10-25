@@ -165,15 +165,17 @@
   .cfg-swatches { grid-template-columns: repeat(5, 1fr); } .cfg-swatch .dot { width: 44px; height: 44px; }
   .cfg-stage-top { top: 10px; left: 10px; right: 10px; }
   .cfg-stage-title { display: none; }
-  .cfg-tab { padding: .5rem .7rem; font-size: .8rem; min-height: 40px; }
+  .cfg-tab { padding: .4rem .6rem; font-size: .74rem; min-height: 34px; }
   .cfg-tab svg { display: none; }
   .cfg-stage-bottom { left: 10px; right: 10px; bottom: calc(var(--sheet-h) + 10px); flex-direction: column; align-items: stretch; gap: .5rem; transition: bottom .3s cubic-bezier(.2,.8,.2,1); }
   .cfg.no-anim .cfg-stage-bottom { transition: none; }
   .cfg-views > div { overflow-x: auto; scrollbar-width: none; justify-content: flex-start; } .cfg-views > div::-webkit-scrollbar { display: none; }
-  .cfg-views button { padding: .5rem .75rem; font-size: .8rem; flex: none; min-height: 38px; }
-  .cfg-dock { padding: .35rem .4rem .35rem .7rem; gap: .45rem; } .cfg-dock-row { flex: 1; min-width: 0; flex-direction: column; align-items: stretch; gap: .1rem; }
-  .cfg-dock-label { font-size: .7rem; min-width: 0; } .cfg-dock input[type=range] { width: 100%; }
-  .cfg-dock .btn-sm { padding: .55rem .7rem; font-size: .78rem; white-space: nowrap; min-height: 42px; } .cfg-dock .btn svg { width: 15px; height: 15px; }
+  .cfg-views button { padding: .4rem .7rem; font-size: .76rem; flex: none; min-height: 34px; }
+  .cfg-stage-bottom { gap: .35rem; }
+  .cfg-dock { padding: .25rem .3rem .25rem .6rem; gap: .4rem; } .cfg-dock-row { flex: 1; min-width: 0; flex-direction: row; align-items: center; gap: .5rem; }
+  .cfg-dock-label { font-size: .62rem; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 34vw; } .cfg-dock input[type=range] { flex: 1; min-width: 60px; }
+  .cfg-save { display: none; }
+  .cfg-dock .btn-sm { padding: .5rem .65rem; font-size: .74rem; white-space: nowrap; min-height: 40px; } .cfg-dock .btn svg { width: 14px; height: 14px; }
   .cfg-save span { display: none; } .cfg-save { padding: .55rem .6rem; }
   .cfg-hint-overlay { bottom: auto; top: 62px; font-size: .78rem; }
   .cfg-cards { grid-template-columns: repeat(3, 1fr); } .cfg-card span strong { font-size: .72rem; }

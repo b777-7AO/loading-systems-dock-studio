@@ -1,7 +1,7 @@
 /* Loading Systems · Dock Studio catalogue
    Sources: Preislisten 11DE-601N (14.09.2026), 11DE-601DD, 11DE-604NG, 11DE-0620NG (01.06.2026), UK Product Brochure 2026, loading-systems.com product pages.
    Prices are LSP list prices (Listenpreise) in EUR net, ex works, as printed. Products without a price list in hand are "auf Anfrage". */
-import PRICES from './prices.js?v=23';
+import PRICES from './prices.js?v=24';
 export { PRICES };
 
 /* ---------------- Doors ---------------- */

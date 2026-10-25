@@ -9,9 +9,9 @@ import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import * as C from './cfg/catalog.js?v=23';
-import { createMaterials, TEX } from './cfg/materials.js?v=23';
-import { buildWarehouse, buildStudio, dispose, DOCK_H, ease, registerParts, registerVehicles, mergeStatic, QUALITY } from './cfg/scene.js?v=23';
+import * as C from './cfg/catalog.js?v=24';
+import { createMaterials, TEX } from './cfg/materials.js?v=24';
+import { buildWarehouse, buildStudio, dispose, DOCK_H, ease, registerParts, registerVehicles, mergeStatic, QUALITY } from './cfg/scene.js?v=24';
 
 const $ = id => document.getElementById(id);
 const q = new URLSearchParams(location.search);
@@ -131,7 +131,7 @@ function goView(name, instant = false) {
   const all = views(); const v = all[name] || all[state.mode === 'studio' ? 'studio' : 'yard']; state.view = name;
   document.querySelectorAll('#cfgViews button').forEach(b => b.classList.toggle('is-active', b.dataset.view === name));
   controls.minDistance = .5; controls.maxDistance = 200; controls.minPolarAngle = 0;
-  const k = camera.aspect < 1 ? 1 + (1 - camera.aspect) * 1.2 : 1; const pos = v.tgt.map((t, i) => t + (v.pos[i] - t) * k);
+  const k = camera.aspect < 1 ? 1 + (1 - camera.aspect) * (mobile ? .35 : 1.2) : 1; const pos = v.tgt.map((t, i) => t + (v.pos[i] - t) * k);
   if (instant) { camera.position.fromArray(pos); controls.target.fromArray(v.tgt); controls.minDistance = v.dist[0]; controls.maxDistance = v.dist[1]; controls.minPolarAngle = v.polar; controls.update(); invalidate(); return; }
   pendingLimits = v; camTween = { from: camera.position.clone(), fromT: controls.target.clone(), to: new THREE.Vector3().fromArray(pos), toT: new THREE.Vector3().fromArray(v.tgt), start: performance.now(), dur: 1000 };
 }
@@ -170,14 +170,14 @@ document.querySelectorAll('#stepNav button').forEach(b => b.addEventListener('cl
   sec.classList.remove('is-collapsed'); if (mobile && sheetState !== 'full') setSheet('full');
   setTimeout(() => { $('panelScroll').scrollTo({ top: sec.offsetTop - 8, behavior: 'smooth' }); }, mobile ? 200 : 0);
 }));
-mobileMQ.addEventListener('change', e => { mobile = e.matches; QUALITY.mobile = mobile || coarse; setSheet(mobile ? 'half' : 'half', false); });
+mobileMQ.addEventListener('change', e => { mobile = e.matches; QUALITY.mobile = mobile || coarse; setSheet('peek', false); });
 
 /* ------------------------------------------------------------------ Loop */
 let visH = 1;
 function resize() {
   const w = wrap.clientWidth, h = wrap.clientHeight; if (!w || !h) return; renderer.setSize(w, h, false); if (composer) composer.setSize(w, h);
   const sheet = sheetPx(); visH = Math.max(h * .35, h - sheet);
-  camera.aspect = w / visH; if (sheet > 0) camera.setViewOffset(w, Math.round(visH), 0, 0, w, h); else camera.clearViewOffset(); camera.updateProjectionMatrix(); invalidate();
+  camera.aspect = w / visH; camera.fov = mobile && w < visH ? 50 : 38; if (sheet > 0) camera.setViewOffset(w, Math.round(visH), 0, 0, w, h); else camera.clearViewOffset(); camera.updateProjectionMatrix(); invalidate();
 }
 new ResizeObserver(resize).observe(wrap); resize();
 let overlayDone = false; const T0 = performance.now(); const perf = { samples: [], last: 0, adjusted: false };
@@ -341,9 +341,9 @@ document.addEventListener('click', e => {
 function sizeInput(id, key) { const e = $(id); const commit = () => { let v = parseInt(e.value, 10); if (!Number.isFinite(v)) v = state[key]; update({ [key]: v }); }; e.addEventListener('change', commit); e.addEventListener('keydown', ev => { if (ev.key === 'Enter') { ev.preventDefault(); commit(); e.blur(); } }); }
 sizeInput('inpW', 'w'); sizeInput('inpH', 'h');
 $('resetBtn').addEventListener('click', () => { history.replaceState(null, '', location.pathname); location.reload(); });
-$('dockBtn').addEventListener('click', () => { setDock(dockTarget === 0); if (mobile && sheetState === 'full') setSheet('half'); });
+$('dockBtn').addEventListener('click', () => { setDock(dockTarget === 0); if (mobile && sheetState !== 'peek') setSheet('peek'); });
 $('dockRange').addEventListener('input', e => { dockAnimStart = null; docking = dockTarget = e.target.value / 100; applyDocking(docking); $('dockBtn').querySelector('span').textContent = docking > .5 ? 'Lkw abfahren' : 'Lkw andocken'; });
-document.querySelectorAll('.cfg-views button').forEach(b => b.addEventListener('click', () => { goView(b.dataset.view); if (mobile && sheetState === 'full') setSheet('half'); }));
+document.querySelectorAll('.cfg-views button').forEach(b => b.addEventListener('click', () => { goView(b.dataset.view); if (mobile && sheetState !== 'peek') setSheet('peek'); }));
 document.querySelectorAll('.cfg-tab').forEach(t => t.addEventListener('click', () => setMode(t.dataset.mode)));
 document.querySelectorAll('.cfg-step-head').forEach(h => h.addEventListener('click', () => h.parentElement.classList.toggle('is-collapsed')));
 $('shareBtn').addEventListener('click', async () => { const url = location.origin + location.pathname + hash(); try { if (navigator.share && coarse) { await navigator.share({ title: 'Loading Systems Dock Studio', url }); return; } await navigator.clipboard.writeText(url); } catch (err) { prompt('Link:', url); } $('shareNote').hidden = false; setTimeout(() => { $('shareNote').hidden = true; }, 3500); });
@@ -354,10 +354,10 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden) inva
 /* ------------------------------------------------------------------ Go */
 window.__cfg = { camera, controls, state, scene, world, renderer, dims: () => dims, update, setMode, goView, setDock, applyDocking, setSheet, invalidate, THREE, price: priceDoor };
 function start() {
-  setSheet(mobile ? 'half' : 'half', false);
+  setSheet('peek', false);
   buildWorld(); renderUI(); setMode(state.mode === 'studio' ? 'studio' : 'yard');
   if (q.get('dock') === '1') { docking = dockTarget = 1; applyDocking(1); $('dockRange').value = 100; $('dockBtn').querySelector('span').textContent = 'Lkw abfahren'; }
-  goView(q.get('view') || (state.mode === 'studio' ? 'studio' : 'yard'), true);
+  goView(q.get('view') || (state.mode === 'studio' ? 'studio' : mobile ? 'bay' : 'yard'), true);
   history.replaceState(null, '', location.pathname + location.search + hash());
   (async () => { try { await renderer.compileAsync(scene, camera); } catch (e) { } loop(performance.now()); })();
 }
