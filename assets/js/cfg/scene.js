@@ -71,7 +71,7 @@ export function registerVehicles(gltfScene, M) {
   gltfScene.traverse(o => {
     if (!o.isMesh) return; o.castShadow = true; o.receiveShadow = true; o.userData.shared = true;
     const m = M.vehicleMap[o.material.name]; if (m) o.material = m;
-    if (/decal/.test(o.name) || o.material === M.decalDark) { o.castShadow = false; o.receiveShadow = false; o.renderOrder = 2; if (/_L$/.test(o.name)) o.material = M.decalDarkL; }
+    if (/decal/.test(o.name) || o.material === M.decalDark) { o.castShadow = false; o.receiveShadow = false; o.renderOrder = 2; }
   });
   gltfScene.children.forEach(c => { c.position.set(0, 0, 0); c.rotation.set(0, 0, 0); VEHICLES[c.name] = c; });
 }
