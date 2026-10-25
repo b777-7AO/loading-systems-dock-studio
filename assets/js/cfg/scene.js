@@ -243,6 +243,7 @@ export function buildLeveller({ M, st, w, bedH }) {
   return { group: g, animate };
 }
 
+const logoPlane = (M, x, y, z, w = .62) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, w * 85 / 240), M.logoWhite); m.position.set(x, y, z); m.castShadow = false; m.receiveShadow = false; m.renderOrder = 2; return m; };
 /* ---------------------------------------------------------------- Dock shelter (403M curtain, 400NG cushion, 405 foam, 407NG inflatable, 408NG inflatable top, 421NG van) */
 export function buildShelter({ M, st, w, h }) {
   const g = new THREE.Group(); const S = SHELTERS[st.shelter]; if (!S || st.shelter === 'none') return { group: g, animate: () => {} };
@@ -251,20 +252,19 @@ export function buildShelter({ M, st, w, h }) {
   const marks = (zf, frameW = side, topH = top) => {   // white reflective marks as on the LS 403M: two parallel diagonals in each top corner, one vertical pill per side curtain
     [-1, 1].forEach(s => { [0, .19].forEach(dx => { const mk = rbox(.075, .38, .012, .03, M.shelterStripe, s * (W / 2 - frameW + .3 + dx), y0 + Hs - topH / 2 + .12 - dx * .55, zf, { shadow: false }); mk.rotation.z = s * .72; g.add(mk); });
       g.add(rbox(.1, Hs * .2, .012, .045, M.shelterStripe, s * (W / 2 - frameW / 2), y0 + Hs * .44, zf, { shadow: false })); });
-    const sl = part('shelter_logo', 0, y0 + Hs - topH / 2 + .12, zf + .01, { shadow: false }); if (sl) g.add(sl);
+    g.add(logoPlane(M, 0, y0 + Hs - topH / 2 + .12, zf + .01));
   };
   if (S.type === 'curtain' || S.type === 'inflTop') {
     // 403M: galvanised frame box covered in black PVC, projecting roof, flexible front curtains
     const frameM = M.shelterBlack, skin = M.shelterBlack, trim = M.shelterStripe;
     g.add(box(W, .08, depth, frameM, 0, y0 + Hs, depth / 2));
     [-1, 1].forEach(s => { g.add(box(.06, Hs, depth, frameM, s * (W / 2 - .03), y0 + Hs / 2, depth / 2));
-      g.add(box(side, Hs - .02, .03, skin, s * (W / 2 - side / 2), y0 + Hs / 2, depth));
+      g.add(box(side, Hs - .02, .03, s < 0 ? M.shelter403Side : M.shelter403SideR, s * (W / 2 - side / 2), y0 + Hs / 2, depth));
       g.add(box(.05, Hs + .02, .02, trim, s * (W / 2 - .025), y0 + Hs / 2, depth + .015, { shadow: false }));   // white edge trim on the frame
       g.add(box(.05, Hs, .05, trim, s * (W / 2 - .025), y0 + Hs / 2, depth - .02, { shadow: false })); });
-    g.add(box(W, top, .03, skin, 0, y0 + Hs - top / 2, depth)); g.add(box(W - .1, .03, depth - .05, skin, 0, y0 + Hs - .03, depth / 2));
+    g.add(box(W, top, .03, M.shelter403Top, 0, y0 + Hs - top / 2, depth)); g.add(box(W - .1, .03, depth - .05, skin, 0, y0 + Hs - .03, depth / 2));
     g.add(box(W, .05, .02, trim, 0, y0 + Hs + .015, depth + .015, { shadow: false })); g.add(box(W, .05, depth, trim, 0, y0 + Hs + .035, depth / 2, { shadow: false }));
     g.add(box(W + .2, .06, depth + .25, frameM, 0, y0 + Hs + .07, depth / 2 - .05));   // rain roof
-    marks(depth + .02);
     if (S.type === 'inflTop') { const cushion = rbox(W - .2, .55, depth - .15, .08, M.cushion, 0, y0 + Hs - top - .25, depth / 2); cushion.userData.dynamic = true; g.add(cushion); cushion.scale.y = .25; animate = t => { const e = ease(t); cushion.scale.y = .25 + .75 * e; cushion.position.y = y0 + Hs - top - .1 - (.55 * cushion.scale.y) / 2; }; }
   } else if (S.type === 'cushion' || S.type === 'foam') {
     const th = S.type === 'foam' ? .44 : .36; const r = S.type === 'foam' ? .12 : .05;
@@ -273,7 +273,7 @@ export function buildShelter({ M, st, w, h }) {
     [-1, 1].forEach(s => { g.add(rbox(th, Hs - top, depth, r, M.cushion, s * (W / 2 - th / 2), y0 + (Hs - top) / 2, depth / 2)); g.add(box(.06, (Hs - top) * .5, .012, M.shelterStripe, s * (W / 2 - th / 2), y0 + (Hs - top) * .5, depth + .005, { shadow: false })); });
     g.add(rbox(W, top, depth * .9, r, M.cushion, 0, y0 + Hs - top / 2, depth / 2));
     [-1, 1].forEach(s => { const mk = box(.12, .4, .012, M.shelterStripe, s * (W / 2 - .45), y0 + Hs - top / 2 + .05, depth * .9 + .01, { shadow: false }); mk.rotation.z = s * .6; g.add(mk); });
-    const sl = part('shelter_logo', 0, y0 + Hs - top / 2 + .1, depth * .9 + .02, { shadow: false }); if (sl) g.add(sl);
+    g.add(logoPlane(M, 0, y0 + Hs - top / 2 + .1, depth * .9 + .02));
   } else if (S.type === 'inflatable') {
     // 407NG: light grey projection frame, black pleated bags that inflate after docking
     const frameM = M.shelter;
@@ -293,7 +293,7 @@ export function buildShelter({ M, st, w, h }) {
     g.add(box(Wv, .06, .55, M.shelterFrame, 0, y0 + Hv, .28));
     [-1, 1].forEach(s => { const c = rbox(.3, Hv - .3, .5, .06, M.cushion, s * (Wv / 2 - .15), y0 + (Hv - .3) / 2, .26); c.rotation.y = -s * .15; g.add(c); g.add(box(.05, (Hv - .3) * .5, .012, M.shelterStripe, s * (Wv / 2 - .15), y0 + (Hv - .3) * .5, .52, { shadow: false })); });
     g.add(rbox(Wv, .3, .5, .06, M.cushion, 0, y0 + Hv - .15, .26));
-    const sl = part('shelter_logo', 0, y0 + Hv - .15, .52, { shadow: false, scale: [.6, .6, 1] }); if (sl) g.add(sl);
+    g.add(logoPlane(M, 0, y0 + Hv - .15, .52, .4));
   }
   return { group: g, animate };
 }

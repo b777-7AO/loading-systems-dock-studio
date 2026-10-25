@@ -106,6 +106,11 @@ export function createMaterials(renderer, manager, { mobile = false } = {}) {
     shelterBlack: std({ ...pbr('ph_pvcseam', 1.3), color: 0x3a3c3f, roughness: .72, normalScale: new THREE.Vector2(.6, .6) }),
     shelterFrame: std({ color: 0xbfc3c6, metalness: .7, roughness: .4 }),
     shelterStripe: std({ color: 0xf4f4f0, roughness: .7, emissive: 0x222222, emissiveIntensity: .25 }),
+    // 403M curtains: textures rectified from an LS site photo (marks, white logo and PVC sheen are the real ones)
+    shelter403Top: std({ map: tx('ls403_top.jpg', { srgb: true, wrap: false }), roughness: .72, color: 0xf0f0f0 }),
+    shelter403Side: std({ map: tx('ls403_side.jpg', { srgb: true, wrap: false }), roughness: .72, color: 0xf0f0f0 }),
+    shelter403SideR: std({ map: (() => { const t = tx('ls403_side.jpg', { srgb: true, wrap: false }).clone(); t.wrapS = THREE.RepeatWrapping; t.repeat.x = -1; t.offset.x = 1; t.needsUpdate = true; return t; })(), roughness: .72, color: 0xf0f0f0 }),
+    logoWhite: std({ map: tx('../img/ls_logo_white.png', { srgb: true, wrap: false }), transparent: true, roughness: .6, polygonOffset: true, polygonOffsetFactor: -2, depthWrite: false }),
     cushion: std({ ...pbr('hf_pvcblack', .5), color: 0x353739, roughness: .8, normalScale: new THREE.Vector2(.6, .6) }),
     levellerPlate: std({ ...pbr('cc_chequer', .55, false), color: 0x3a3d40, metalness: .55, roughness: .6, normalScale: new THREE.Vector2(1.1, 1.1) }),
     levellerFrame: std({ color: 0x2f3236, metalness: .65, roughness: .5 }),
