@@ -9,9 +9,9 @@ import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import * as C from './cfg/catalog.js';
-import { createMaterials, TEX } from './cfg/materials.js';
-import { buildWarehouse, buildStudio, dispose, DOCK_H, ease, registerParts, registerVehicles, mergeStatic, QUALITY } from './cfg/scene.js';
+import * as C from './cfg/catalog.js?v=23';
+import { createMaterials, TEX } from './cfg/materials.js?v=23';
+import { buildWarehouse, buildStudio, dispose, DOCK_H, ease, registerParts, registerVehicles, mergeStatic, QUALITY } from './cfg/scene.js?v=23';
 
 const $ = id => document.getElementById(id);
 const q = new URLSearchParams(location.search);
@@ -363,7 +363,7 @@ function start() {
 }
 let pending = 5; const ready = () => { if (--pending === 0) start(); };
 const gl = new GLTFLoader(manager);
-const MODEL_VER = '?v=7';
+const MODEL_VER = '?v=8';
 gl.load('assets/models/door_parts.glb' + MODEL_VER, g => { registerParts(g.scene); ready(); }, undefined, err => { console.warn('door parts missing', err); ready(); });
 // procedural library (parked trailer, fallback) and the photoscan-style semi-trailer (Hunyuan3D from a generated reference, prepared in Blender)
 gl.load('assets/models/vehicles.glb' + MODEL_VER, g => { registerVehicles(g.scene, M, { rename: { semi: 'semi_proc', rigid: 'rigid_proc', van: 'van_proc' } }); ready(); }, undefined, err => { console.warn('vehicles missing', err); ready(); });
