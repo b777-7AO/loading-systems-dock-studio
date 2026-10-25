@@ -1,0 +1,8 @@
+Texture sources (all CC0 / public domain):
+- cc_chequer_*  : ambientCG MetalPlates006 (https://ambientcg.com/a/MetalPlates006), CC0
+- cc_rubber_*   : ambientCG Rubber004 (https://ambientcg.com/a/Rubber004), CC0
+- cc_corrugated_*: ambientCG CorrugatedSteel005 (https://ambientcg.com/a/CorrugatedSteel005), CC0
+- ph_boxprofile_*: Poly Haven box_profile_metal_sheet (https://polyhaven.com/a/box_profile_metal_sheet), CC0
+- ph_pvcseam_*  : Poly Haven rubber_tiles (https://polyhaven.com/a/rubber_tiles), CC0
+- hf_*          : generated material scans (Higgsfield), project assets
+- sky_1k.hdr    : Poly Haven HDRI, CC0

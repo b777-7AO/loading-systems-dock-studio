@@ -2,21 +2,22 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Dock Studio · 3D-Konfigurator für Verladestellen · Loading Systems</title>
   <meta name="description" content="Verladestelle in 3D konfigurieren: Industrietore, Überladebrücken, Torabdichtungen, Puffer, Wegfahrsicherungen und Dock-Licht. Lkw andocken, Tor öffnen, Rampe auffahren. Mit Listenpreisen für Sektionaltore.">
   <link rel="icon" type="image/png" href="assets/img/favicon.png">
   <meta name="theme-color" content="#e00034">
   <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="assets/css/style.css?v=1">
-  <link rel="stylesheet" href="assets/css/konfigurator.css?v=2">
+  <link rel="stylesheet" href="assets/css/style.css?v=2">
+  <link rel="stylesheet" href="assets/css/konfigurator.css?v=3">
+  <link rel="preload" href="assets/models/vehicles.glb?v=4" as="fetch" crossorigin>
   <script type="importmap">{ "imports": { "three": "./assets/vendor/three/three.module.js", "three/addons/": "./assets/vendor/three/addons/" } }</script>
 </head>
 <body class="cfg-page">
   <div data-include="partials/header.html" data-root=""></div>
 
-  <main class="cfg" id="main">
+  <main class="cfg" id="main" data-sheet="half">
     <section class="cfg-stage" aria-label="3D-Ansicht">
       <div class="cfg-stage-top">
         <div class="cfg-tabs" role="tablist">
@@ -29,23 +30,28 @@
         <canvas id="cfgCanvas" aria-label="3D-Darstellung der Verladestelle"></canvas>
         <div class="cfg-loading" id="cfgLoading"><span class="spinner"></span> Verladehalle wird aufgebaut …</div>
         <div class="cfg-dim" id="dimLabel" hidden><span class="dot"></span><span id="dimText"></span></div>
-        <div class="cfg-hint-overlay" id="cfgHint" hidden><span>Ziehen zum Drehen, Scrollen zum Zoomen, rechte Maustaste zum Verschieben</span></div>
+        <div class="cfg-hint-overlay" id="cfgHint" hidden><span>Ziehen zum Drehen, Scrollen zum Zoomen</span></div>
       </div>
       <div class="cfg-stage-bottom">
         <div class="cfg-views" id="cfgViews">
-          <div id="viewsYard"><button type="button" data-view="yard" class="is-active">Hof</button><button type="button" data-view="bay">Dock</button><button type="button" data-view="inside">Innen am Tor</button><button type="button" data-view="hall">Halle</button><button type="button" data-view="top">Von oben</button></div>
+          <div id="viewsYard"><button type="button" data-view="yard" class="is-active">Hof</button><button type="button" data-view="bay">Dock</button><button type="button" data-view="truck">Lkw</button><button type="button" data-view="inside">Innen</button><button type="button" data-view="hall">Halle</button><button type="button" data-view="top">Oben</button></div>
           <div id="viewsStudio" hidden><button type="button" data-view="studio">Ansicht</button><button type="button" data-view="detail">Detail</button><button type="button" data-view="inside">Innen</button></div>
         </div>
         <div class="cfg-dock">
-          <span class="cfg-dock-label" id="dockLabel">Dock frei</span>
-          <input type="range" id="dockRange" min="0" max="100" value="0" aria-label="Andockvorgang">
+          <div class="cfg-dock-row"><span class="cfg-dock-label" id="dockLabel">Dock frei</span><input type="range" id="dockRange" min="0" max="100" value="0" aria-label="Andockvorgang"></div>
           <button type="button" class="btn btn-primary btn-sm" id="dockBtn"><svg viewBox="0 0 24 24"><path d="M3 15V7h11v8M14 10h4l3 3v2h-7"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/></svg><span>Lkw andocken</span></button>
-          <button type="button" class="btn btn-ghost btn-sm" id="saveImage">Bild speichern</button>
+          <button type="button" class="btn btn-ghost btn-sm cfg-save" id="saveImage" aria-label="Bild speichern"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg><span>Bild</span></button>
         </div>
       </div>
     </section>
 
-    <aside class="cfg-panel" aria-label="Konfiguration">
+    <aside class="cfg-panel" id="cfgPanel" aria-label="Konfiguration">
+      <button type="button" class="cfg-sheet-grip" id="sheetGrip" aria-label="Konfiguration auf- und zuklappen" aria-expanded="true"><span></span></button>
+      <div class="cfg-sticky" id="stickyBar"><div class="cfg-sticky-text"><span id="stickySummary"></span><strong id="stickyPrice"></strong></div><a class="btn btn-primary btn-sm" id="stickyRequest" href="kontakt.html">Anfragen</a></div>
+      <nav class="cfg-stepnav" id="stepNav" aria-label="Schritte">
+        <button type="button" data-step="step1" class="is-active">Tor</button><button type="button" data-step="step2">Ausstattung</button><button type="button" data-step="step3">Brücke</button><button type="button" data-step="step4">Sicherheit</button><button type="button" data-step="step5">Halle</button><button type="button" data-step="summaryStep">Preis</button>
+      </nav>
+      <div class="cfg-panel-scroll" id="panelScroll">
       <header class="cfg-panel-head">
         <div class="cfg-head-row"><span class="eyebrow">Dock Studio</span><button type="button" class="cfg-reset" id="resetBtn">Zurücksetzen</button></div>
         <h1>Ihre Verladestelle, komplett in 3D.</h1>
@@ -55,7 +61,7 @@
       </header>
 
       <section class="cfg-step" id="step1">
-        <button type="button" class="cfg-step-head"><span class="num">1</span><span class="t">Industrietor</span><svg class="chev" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></button>
+        <button type="button" class="cfg-step-head"><span class="num">1</span><span class="t">Industrietor</span><span class="cfg-sel"></span><svg class="chev" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></button>
         <div class="cfg-step-body">
           <div class="cfg-cards" id="optDoor"></div>
           <p class="cfg-help" id="doorDesc"></p>
@@ -76,7 +82,7 @@
       </section>
 
       <section class="cfg-step" id="step2">
-        <button type="button" class="cfg-step-head"><span class="num">2</span><span class="t">Verglasung, Schlupftür, Bedienung</span><svg class="chev" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></button>
+        <button type="button" class="cfg-step-head"><span class="num">2</span><span class="t">Verglasung, Schlupftür, Bedienung</span><span class="cfg-sel"></span><svg class="chev" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></button>
         <div class="cfg-step-body">
           <div class="cfg-subhead">Fenster</div><div class="cfg-chips" id="optWindows"></div>
           <div class="cfg-subhead">Full-Vision-Sektion</div><div class="cfg-chips" id="optFullvision"></div>
@@ -91,7 +97,7 @@
       </section>
 
       <section class="cfg-step" id="step3">
-        <button type="button" class="cfg-step-head"><span class="num">3</span><span class="t">Überladebrücke und Torabdichtung</span><svg class="chev" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></button>
+        <button type="button" class="cfg-step-head"><span class="num">3</span><span class="t">Überladebrücke und Torabdichtung</span><span class="cfg-sel"></span><svg class="chev" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></button>
         <div class="cfg-step-body">
           <div class="cfg-cards cfg-cards-list" id="optLeveller"></div>
           <div id="levellerRows">
@@ -105,7 +111,7 @@
       </section>
 
       <section class="cfg-step" id="step4">
-        <button type="button" class="cfg-step-head"><span class="num">4</span><span class="t">Puffer, Sicherheit, Licht</span><svg class="chev" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></button>
+        <button type="button" class="cfg-step-head"><span class="num">4</span><span class="t">Puffer, Sicherheit, Licht</span><span class="cfg-sel"></span><svg class="chev" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></button>
         <div class="cfg-step-body">
           <div class="cfg-subhead">Puffer</div><div class="cfg-swatches small" id="optBumper"></div><p class="cfg-help" id="bumperDesc"></p>
           <div class="cfg-subhead">Wegfahrsicherung</div><div class="cfg-chips" id="optRestraint"></div>
@@ -113,13 +119,13 @@
           <label class="cfg-switch"><input type="checkbox" id="opt_trafficLight"><span class="track"></span><span class="text"><strong>Ampel rot/grün</strong><small>LED, 7 m Kabel, schaltet mit der Wegfahrsicherung</small></span></label>
           <label class="cfg-switch"><input type="checkbox" id="opt_bollards"><span class="track"></span><span class="text"><strong>Sicherheitspoller 961</strong><small>Gelb-schwarz, beidseitig am Tor</small></span></label>
           <label class="cfg-switch"><input type="checkbox" id="opt_wheelGuides"><span class="track"></span><span class="text"><strong>Radführungen 970</strong><small>Führen den Lkw mittig ans Dock</small></span></label>
-          <label class="cfg-switch"><input type="checkbox" id="opt_numbers"><span class="track"></span><span class="text"><strong>Dock-Nummern</strong><small>Ziffern schwarz am Tor</small></span></label>
+          <label class="cfg-switch"><input type="checkbox" id="opt_numbers"><span class="track"></span><span class="text"><strong>Dock-Nummern</strong><small>Ziffern am Tor</small></span></label>
           <div class="cfg-subhead">Dock-Steuerung</div><div class="cfg-chips" id="optDockControl"></div><p class="cfg-help" id="dockControlDesc"></p>
         </div>
       </section>
 
       <section class="cfg-step" id="step5">
-        <button type="button" class="cfg-step-head"><span class="num">5</span><span class="t">Halle, Docks, Fahrzeuge</span><svg class="chev" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></button>
+        <button type="button" class="cfg-step-head"><span class="num">5</span><span class="t">Halle, Docks, Fahrzeuge</span><span class="cfg-sel"></span><svg class="chev" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></button>
         <div class="cfg-step-body">
           <div class="cfg-subhead">Anzahl Docks</div><div class="cfg-chips" id="optBays"></div>
           <div id="activeBayRow"><div class="cfg-subhead">Aktives Dock (Kamera, Lkw)</div><div class="cfg-chips" id="optActiveBay"></div></div>
@@ -135,20 +141,20 @@
         </div>
       </section>
 
-      <section class="cfg-summary">
+      <section class="cfg-summary" id="summaryStep">
         <h2>Ihre Verladestelle</h2>
         <dl id="summary"></dl>
         <div class="cfg-pricebox" id="priceBox"></div>
-        <div class="cfg-summary-actions"><a class="btn btn-primary" id="requestBtn" href="kontakt.html">Angebot anfragen</a><button class="btn btn-ghost" id="shareBtn" type="button">Link kopieren</button></div>
+        <div class="cfg-summary-actions"><a class="btn btn-primary" id="requestBtn" href="kontakt.html">Angebot anfragen</a><button class="btn btn-ghost" id="shareBtn" type="button">Link teilen</button></div>
         <p class="cfg-note" id="shareNote" hidden>Link kopiert.</p>
         <p class="cfg-note">Torpreise sind Listenpreise (LSP) aus den Preislisten 11DE-601N, 601DD, 604NG und 0620NG, netto ab Werk. Überladebrücken, Torabdichtungen, Puffer und Sicherheitssysteme werden nach Aufmaß angeboten. Die 3D-Darstellung ist eine maßstäbliche Visualisierung.</p>
       </section>
-      <div class="cfg-sticky" id="stickyBar"><div class="cfg-sticky-text"><span id="stickySummary"></span><strong id="stickyPrice"></strong></div><a class="btn btn-primary btn-sm" id="stickyRequest" href="kontakt.html">Anfragen</a></div>
+      </div>
     </aside>
   </main>
 
   <div data-include="partials/footer.html" data-root=""></div>
   <script src="assets/js/main.js"></script>
-  <script type="module" src="assets/js/konfigurator.js?v=10"></script>
+  <script type="module" src="assets/js/konfigurator.js?v=20"></script>
 </body>
 </html>

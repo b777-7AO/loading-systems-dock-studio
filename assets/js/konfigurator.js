@@ -11,14 +11,16 @@ import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import * as C from './cfg/catalog.js';
 import { createMaterials, TEX } from './cfg/materials.js';
-import { buildWarehouse, buildStudio, dispose, DOCK_H, ease, registerParts, mergeStatic } from './cfg/scene.js';
+import { buildWarehouse, buildStudio, dispose, DOCK_H, ease, registerParts, registerVehicles, mergeStatic, QUALITY } from './cfg/scene.js';
 
 const $ = id => document.getElementById(id);
 const q = new URLSearchParams(location.search);
+const mobileMQ = window.matchMedia('(max-width: 900px)'); const coarse = !window.matchMedia('(pointer: fine)').matches;
+let mobile = mobileMQ.matches; QUALITY.mobile = mobile || coarse;
 
 /* ------------------------------------------------------------------ State */
 const state = {
-  door: 'dockdoor', w: 3000, h: 3250, ral: '9002', panel: 'industrie', lift: 'normal', lift620: 'SL', windows: 'none', fullvision: 'none', wicket: 'none', wicketLock: 'handle',
+  door: 'dockdoor', w: 3000, h: 3250, ral: '9002', panel: 'industrie', lift: 'normal', lift620: 'SL', windows: 'rect', fullvision: 'none', wicket: 'none', wicketLock: 'handle',
   operation: 'rope', lock: 'none', safety: [], controls: [], numbers: true, grille: false,
   leveller: 'tele', levellerLen: 2500, levellerW: 2000, levellerCap: 'std', shelter: 'inflatable', bumper: 'nylon', restraint: 'auto', light: 'led', trafficLight: true, bollards: true, wheelGuides: true, dockControl: 'combi',
   mandoor: 'none', mandoorW: 1000, mandoorH: 2125, mandoorLock: 'std', mandoorThermal: true,
@@ -47,21 +49,23 @@ function normalise() {
 readHash();
 
 /* ------------------------------------------------------------------ Renderer / scene */
-const canvas = $('cfgCanvas'), wrap = $('canvasWrap');
+const canvas = $('cfgCanvas'), wrap = $('canvasWrap'), cfgRoot = document.querySelector('.cfg');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
-const useAO = !q.has('noao') && window.matchMedia('(pointer: fine)').matches && Math.min(innerWidth, innerHeight) > 600;
-renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5)); renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+const useAO = !q.has('noao') && !coarse && !mobile && Math.min(innerWidth, innerHeight) > 600;
+renderer.setPixelRatio(Math.min(devicePixelRatio, QUALITY.mobile ? 1.3 : 1.5)); renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap; renderer.localClippingEnabled = true;
 renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.0; renderer.outputColorSpace = THREE.SRGBColorSpace;
-let assetsReady = false; const manager = new THREE.LoadingManager(() => { assetsReady = true; finishLoading(); });
-const mats = createMaterials(renderer, manager); const { M } = mats;
+let dirty = true, redrawUntil = 0; const invalidate = () => { dirty = true; };
+let assetsReady = false; const manager = new THREE.LoadingManager(() => { assetsReady = true; redrawUntil = performance.now() + 2500; finishLoading(); }, () => { redrawUntil = Math.max(redrawUntil, performance.now() + 800); });
+const mats = createMaterials(renderer, manager, { mobile: QUALITY.mobile }); const { M } = mats;
 const scene = new THREE.Scene();
 const sky = mats.tx('sky.jpg', { srgb: true, wrap: false }); sky.mapping = THREE.EquirectangularReflectionMapping; const SKY_ROT = 1.95;
-let skyEnv = sky; new RGBELoader(manager).load(TEX + 'sky_1k.hdr', t => { t.mapping = THREE.EquirectangularReflectionMapping; skyEnv = t; if (state.mode !== 'studio') scene.environment = t; });
+let skyEnv = sky; new RGBELoader(manager).load(TEX + 'sky_1k.hdr', t => { t.mapping = THREE.EquirectangularReflectionMapping; skyEnv = t; if (state.mode !== 'studio') scene.environment = t; invalidate(); });
 scene.background = sky; scene.environment = sky; scene.environmentIntensity = .55; scene.backgroundIntensity = .9; scene.backgroundRotation.set(0, SKY_ROT, 0); scene.environmentRotation.set(0, SKY_ROT, 0);
 const pmrem = new THREE.PMREMGenerator(renderer); const studioEnv = pmrem.fromScene(new RoomEnvironment(), .04).texture; pmrem.dispose();
 const sunDir = new THREE.Vector3(.555, .742, .377).applyAxisAngle(new THREE.Vector3(0, 1, 0), -SKY_ROT).normalize();
 const camera = new THREE.PerspectiveCamera(38, 1, .2, 400);
-const controls = new OrbitControls(camera, canvas); controls.enableDamping = true; controls.dampingFactor = .08; controls.enablePan = true; controls.maxPolarAngle = Math.PI / 2 - .02; controls.screenSpacePanning = false;
+const controls = new OrbitControls(camera, canvas); controls.enableDamping = true; controls.dampingFactor = .08; controls.enablePan = !coarse; controls.maxPolarAngle = Math.PI / 2 - .02; controls.screenSpacePanning = false; controls.rotateSpeed = coarse ? .7 : 1;
+controls.addEventListener('change', invalidate);
 class AOPass extends GTAOPass { overrideVisibility() { super.overrideVisibility(); this.scene.traverse(o => { if (o.userData.cutout) o.visible = false; }); } }
 let composer = null, aoPass = null, aoOn = useAO;
 if (useAO) {
@@ -74,12 +78,13 @@ if (useAO) {
   composer.addPass(lens); composer.addPass(new OutputPass()); window.__lens = lens;
 }
 function draw() { if (composer && aoOn) composer.render(); else renderer.render(scene, camera); }
-const sun = new THREE.DirectionalLight(0xfff1dc, 3.2); sun.position.copy(sunDir).multiplyScalar(80); sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048);
+const shadowSize = QUALITY.mobile ? 1024 : 2048;
+const sun = new THREE.DirectionalLight(0xfff1dc, 3.2); sun.position.copy(sunDir).multiplyScalar(80); sun.castShadow = true; sun.shadow.mapSize.set(shadowSize, shadowSize);
 Object.assign(sun.shadow.camera, { near: 5, far: 220, left: -60, right: 60, top: 60, bottom: -60 }); sun.shadow.camera.updateProjectionMatrix(); sun.shadow.bias = -.0003; sun.shadow.normalBias = .04;
 const fill = new THREE.DirectionalLight(0xeaf2ff, .5); fill.position.set(-20, 12, 40);
 const hemi = new THREE.HemisphereLight(0xdde8ff, 0x6f7a63, .08); scene.add(sun, fill, hemi);
 scene.fog = new THREE.Fog(0xc9d2da, 120, 320);
-const studioKey = new THREE.DirectionalLight(0xffffff, 2.0); studioKey.position.set(-8, 14, 12); studioKey.castShadow = true; studioKey.shadow.mapSize.set(2048, 2048); Object.assign(studioKey.shadow.camera, { near: 1, far: 60, left: -14, right: 14, top: 16, bottom: -4 }); studioKey.shadow.camera.updateProjectionMatrix();
+const studioKey = new THREE.DirectionalLight(0xffffff, 2.0); studioKey.position.set(-8, 14, 12); studioKey.castShadow = true; studioKey.shadow.mapSize.set(shadowSize, shadowSize); Object.assign(studioKey.shadow.camera, { near: 1, far: 60, left: -14, right: 14, top: 16, bottom: -4 }); studioKey.shadow.camera.updateProjectionMatrix();
 const studioFill = new THREE.DirectionalLight(0xe8f0ff, .8); studioFill.position.set(10, 6, 10); const studioLights = new THREE.Group(); studioLights.add(studioKey, studioFill); scene.add(studioLights);
 
 /* ------------------------------------------------------------------ World */
@@ -94,16 +99,17 @@ function buildWorld() {
   if (studio) { studioGroup = buildStudio({ M, dims }); world.add(studioGroup); }
   scene.background = studio ? new THREE.Color(0xe9eaec) : sky; scene.environment = studio ? studioEnv : skyEnv; scene.fog = studio ? null : new THREE.Fog(0xc9d2da, 120, 320);
   scene.environmentIntensity = studio ? .75 : .55; sun.visible = !studio; fill.visible = !studio; hemi.visible = !studio; studioLights.visible = studio; renderer.toneMappingExposure = studio ? 1.1 : 1.0;
-  applyDocking(docking, true);
+  applyDocking(docking, true); invalidate();
 }
 /* docking sequence phases */
 function applyDocking(t, force = false) {
   if (!wh) return; const r = wh.rigs;
   const arrive = ease(Math.min(1, t / .38)); const restr = Math.max(0, Math.min(1, (t - .36) / .12)); const door = Math.max(0, Math.min(1, (t - .46) / .2)); const shel = Math.max(0, Math.min(1, (t - .5) / .22)); const lev = Math.max(0, Math.min(1, (t - .66) / .34));
-  r.trucks.forEach(tr => { const start = 34, end = .36; const z = start + (end - start) * arrive; const prev = tr.group.position.z; tr.group.position.z = z; tr.animate(prev - z); });
+  r.trucks.forEach(tr => { const start = 31, end = .34; const z = start + (end - start) * arrive; const prev = tr.group.position.z; tr.group.position.z = z; tr.animate(prev - z); });
   r.restraints.forEach(x => x.animate(restr)); r.doors.forEach(x => x.animate(door)); r.shelters.forEach(x => x.animate(shel)); r.levellers.forEach(x => x.animate(lev));
   r.lights.forEach(x => x.setOn(door > .3)); r.traffic.forEach(x => x.set(restr > .5 ? 'red' : 'green'));
   $('dockLabel').textContent = t < .05 ? 'Dock frei' : t < .38 ? 'Lkw fährt an' : t < .48 ? 'Wegfahrsicherung aktiv' : t < .68 ? 'Tor öffnet' : t < .98 ? 'Überladebrücke fährt auf' : 'Verladung läuft';
+  invalidate();
 }
 
 /* ------------------------------------------------------------------ Views */
@@ -112,9 +118,10 @@ function views() {
   return {
     yard: { pos: [cx + 17, 5.5, 27], tgt: [cx - 3, 2.2, 0], polar: .3, dist: [4, 90] },
     bay: { pos: [cx + 9, 2.6, 6.5], tgt: [cx + .5, yc - .3, .6], polar: .3, dist: [2, 40] },
-    inside: { pos: [cx + 1.5, DOCK_H + 1.7, -7.5], tgt: [cx, yc, 0], polar: .3, dist: [1.5, 30] },
+    inside: { pos: [cx + 1.5, DOCK_H + 1.7, state.mode === 'studio' ? -4.6 : -7.5], tgt: [cx, yc, 0], polar: .3, dist: [1.5, 30] },
     hall: { pos: [cx - 5, DOCK_H + 3.2, -13], tgt: [cx + 1, DOCK_H + 1.4, -2], polar: .3, dist: [2, 60] },
     top: { pos: [cx, 34, 12], tgt: [cx, 0, -2], polar: .05, dist: [10, 120] },
+    truck: (() => { const tr = wh && wh.rigs.trucks[0]; const tz = tr ? tr.group.position.z : 12; const L = tr ? tr.len : 14; return { pos: [cx + 7, 3.2, tz + L * .55 + 11], tgt: [cx - .5, 2.0, tz + L * .45], polar: .3, dist: [3, 70] }; })(),
     studio: { pos: [w * 1.2 + 4, 2.4, 9.5], tgt: [0, yc + .2, 0], polar: .25, dist: [3, 30] },
     detail: { pos: [-1.8, DOCK_H + 1.4, 3.4], tgt: [-.5, DOCK_H + 1.1, 0], polar: .25, dist: [1, 30] },
   };
@@ -124,7 +131,7 @@ function goView(name, instant = false) {
   document.querySelectorAll('#cfgViews button').forEach(b => b.classList.toggle('is-active', b.dataset.view === name));
   controls.minDistance = .5; controls.maxDistance = 200; controls.minPolarAngle = 0;
   const k = camera.aspect < 1 ? 1 + (1 - camera.aspect) * 1.2 : 1; const pos = v.tgt.map((t, i) => t + (v.pos[i] - t) * k);
-  if (instant) { camera.position.fromArray(pos); controls.target.fromArray(v.tgt); controls.minDistance = v.dist[0]; controls.maxDistance = v.dist[1]; controls.minPolarAngle = v.polar; controls.update(); return; }
+  if (instant) { camera.position.fromArray(pos); controls.target.fromArray(v.tgt); controls.minDistance = v.dist[0]; controls.maxDistance = v.dist[1]; controls.minPolarAngle = v.polar; controls.update(); invalidate(); return; }
   pendingLimits = v; camTween = { from: camera.position.clone(), fromT: controls.target.clone(), to: new THREE.Vector3().fromArray(pos), toT: new THREE.Vector3().fromArray(v.tgt), start: performance.now(), dur: 1000 };
 }
 function setMode(mode) {
@@ -134,22 +141,61 @@ function setMode(mode) {
 }
 function setDock(open) { dockTarget = open ? 1 : 0; dockFrom = docking; dockAnimStart = performance.now(); const b = $('dockBtn'); b.querySelector('span').textContent = open ? 'Lkw abfahren' : 'Lkw andocken'; b.classList.toggle('is-open', open); }
 
+/* ------------------------------------------------------------------ Mobile bottom sheet */
+const SHEET = { peek: 0, half: 0, full: 0 }; let sheetState = 'half';
+function sheetHeights() { const H = cfgRoot.clientHeight; SHEET.peek = 132; SHEET.half = Math.round(H * .46); SHEET.full = Math.round(H * .9); }
+function sheetPx() { return mobile ? SHEET[sheetState] : 0; }
+function setSheet(s, animate = true) {
+  sheetState = s; sheetHeights(); cfgRoot.classList.toggle('no-anim', !animate);
+  cfgRoot.style.setProperty('--sheet-h', (mobile ? SHEET[s] : 0) + 'px'); cfgRoot.dataset.sheet = s;
+  $('sheetGrip').setAttribute('aria-expanded', String(s !== 'peek'));
+  setTimeout(resize, animate ? 320 : 0); resize();
+}
+(function sheetDrag() {
+  const grip = $('sheetGrip'), sticky = $('stickyBar'); let startY = 0, startH = 0, dragging = false, lastY = 0, lastT = 0, vel = 0;
+  const down = e => { if (!mobile) return; dragging = true; startY = e.clientY; startH = SHEET[sheetState]; lastY = e.clientY; lastT = performance.now(); vel = 0; cfgRoot.classList.add('no-anim'); e.currentTarget.setPointerCapture(e.pointerId); };
+  const move = e => { if (!dragging) return; const h = Math.max(SHEET.peek, Math.min(SHEET.full, startH + (startY - e.clientY))); cfgRoot.style.setProperty('--sheet-h', h + 'px'); const now = performance.now(); vel = (lastY - e.clientY) / Math.max(1, now - lastT); lastY = e.clientY; lastT = now; };
+  const up = e => { if (!dragging) return; dragging = false; const h = SHEET[sheetState] + (startY - e.clientY); const moved = Math.abs(startY - e.clientY) > 6;
+    let target = sheetState;
+    if (!moved) target = sheetState === 'peek' ? 'half' : sheetState === 'half' ? 'full' : 'peek';
+    else if (Math.abs(vel) > .6) target = vel > 0 ? (sheetState === 'peek' ? 'half' : 'full') : (sheetState === 'full' ? 'half' : 'peek');
+    else target = ['peek', 'half', 'full'].reduce((a, b) => Math.abs(SHEET[b] - h) < Math.abs(SHEET[a] - h) ? b : a);
+    setSheet(target); };
+  [grip, sticky].forEach(el => { el.addEventListener('pointerdown', down); el.addEventListener('pointermove', move); el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up); });
+  canvas.addEventListener('pointerdown', () => { if (mobile && sheetState === 'full') setSheet('half'); });
+})();
+document.querySelectorAll('#stepNav button').forEach(b => b.addEventListener('click', () => {
+  const sec = $(b.dataset.step); if (!sec) return; document.querySelectorAll('#stepNav button').forEach(x => x.classList.toggle('is-active', x === b));
+  sec.classList.remove('is-collapsed'); if (mobile && sheetState !== 'full') setSheet('full');
+  setTimeout(() => { $('panelScroll').scrollTo({ top: sec.offsetTop - 8, behavior: 'smooth' }); }, mobile ? 200 : 0);
+}));
+mobileMQ.addEventListener('change', e => { mobile = e.matches; QUALITY.mobile = mobile || coarse; setSheet(mobile ? 'half' : 'half', false); });
+
 /* ------------------------------------------------------------------ Loop */
-function resize() { const w = wrap.clientWidth, h = wrap.clientHeight; if (!w || !h) return; renderer.setSize(w, h, false); if (composer) composer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix(); }
+let visH = 1;
+function resize() {
+  const w = wrap.clientWidth, h = wrap.clientHeight; if (!w || !h) return; renderer.setSize(w, h, false); if (composer) composer.setSize(w, h);
+  const sheet = sheetPx(); visH = Math.max(h * .35, h - sheet);
+  camera.aspect = w / visH; if (sheet > 0) camera.setViewOffset(w, Math.round(visH), 0, 0, w, h); else camera.clearViewOffset(); camera.updateProjectionMatrix(); invalidate();
+}
 new ResizeObserver(resize).observe(wrap); resize();
 let overlayDone = false; const T0 = performance.now(); const perf = { samples: [], last: 0, adjusted: false };
-function finishLoading() { if (overlayDone || !wh) return; overlayDone = true; controls.update(); draw(); $('cfgLoading').classList.add('done'); const hint = $('cfgHint'); hint.hidden = false; const hide = () => { hint.hidden = true; canvas.removeEventListener('pointerdown', hide); }; canvas.addEventListener('pointerdown', hide); setTimeout(hide, 6000); }
-function adaptQuality(now) { if (perf.adjusted) return; if (perf.last) perf.samples.push(now - perf.last); perf.last = now; if (perf.samples.length < 40) return; const avg = perf.samples.slice(5).reduce((a, b) => a + b, 0) / 35; perf.adjusted = true; if (avg > 45) { aoOn = false; renderer.setPixelRatio(1); if (composer) composer.setPixelRatio(1); resize(); } }
+function finishLoading() { if (overlayDone || !wh) return; overlayDone = true; controls.update(); draw(); $('cfgLoading').classList.add('done'); const hint = $('cfgHint'); hint.hidden = false; const hide = () => { hint.hidden = true; canvas.removeEventListener('pointerdown', hide); }; canvas.addEventListener('pointerdown', hide); setTimeout(hide, 6000); redrawUntil = performance.now() + 2500; }
+function adaptQuality(now) { if (perf.adjusted) return; if (perf.last) perf.samples.push(now - perf.last); perf.last = now; if (perf.samples.length < 40) return; const avg = perf.samples.slice(5).reduce((a, b) => a + b, 0) / 35; perf.adjusted = true; window.__avgFrame = avg; if (avg > 45) { aoOn = false; renderer.setPixelRatio(1); if (composer) composer.setPixelRatio(1); resize(); } }
 const _v = new THREE.Vector3();
-function place(el, x, y, z) { _v.set(x, y, z).project(camera); const w = wrap.clientWidth, h = wrap.clientHeight; const px = (_v.x + 1) / 2 * w, py = (1 - _v.y) / 2 * h; const vis = _v.z < 1 && px > 40 && px < w - 40 && py > 70 && py < h - 60; el.hidden = !vis; if (vis) { el.style.left = px + 'px'; el.style.top = py + 'px'; } }
+function place(el, x, y, z) { _v.set(x, y, z).project(camera); const w = wrap.clientWidth; const px = (_v.x + 1) / 2 * w, py = (1 - _v.y) / 2 * wrap.clientHeight; const vis = _v.z < 1 && px > 40 && px < w - 40 && py > 70 && py < visH - 60; el.hidden = !vis; if (vis) { el.style.left = px + 'px'; el.style.top = py + 'px'; } }
 function labels() { const cx = state.mode === 'studio' ? 0 : dims.bayX(state.activeBay); place($('dimLabel'), cx, DOCK_H + dims.h + .55, .1); }
 function loop(now) {
   requestAnimationFrame(loop);
-  if (camTween) { const k = Math.min(1, (now - camTween.start) / camTween.dur), e = ease(k); camera.position.lerpVectors(camTween.from, camTween.to, e); controls.target.lerpVectors(camTween.fromT, camTween.toT, e); if (k >= 1) { camTween = null; if (pendingLimits) { controls.minDistance = pendingLimits.dist[0]; controls.maxDistance = pendingLimits.dist[1]; controls.minPolarAngle = pendingLimits.polar; pendingLimits = null; } } }
+  if (document.hidden) return;
+  if (camTween) { const k = Math.min(1, (now - camTween.start) / camTween.dur), e = ease(k); camera.position.lerpVectors(camTween.from, camTween.to, e); controls.target.lerpVectors(camTween.fromT, camTween.toT, e); if (k >= 1) { camTween = null; if (pendingLimits) { controls.minDistance = pendingLimits.dist[0]; controls.maxDistance = pendingLimits.dist[1]; controls.minPolarAngle = pendingLimits.polar; pendingLimits = null; } } dirty = true; }
   if (dockAnimStart !== null) { const k = Math.min(1, (now - dockAnimStart) / 9000); docking = dockFrom + (dockTarget - dockFrom) * k; applyDocking(docking); $('dockRange').value = Math.round(docking * 100); if (k >= 1) dockAnimStart = null; }
+  if (controls.update()) dirty = true;
+  const keepGoing = now < redrawUntil || !overlayDone;
+  if (!dirty && !keepGoing) { perf.last = 0; return; }
   if (window.__lens) window.__lens.uniforms.uTime.value = (now % 1000) / 37;
-  controls.update(); draw(); labels();
-  if (!overlayDone && (assetsReady || now - T0 > 7000)) finishLoading(); if (overlayDone) adaptQuality(now);
+  draw(); labels(); dirty = false;
+  if (!overlayDone && (assetsReady || now - T0 > 9000)) finishLoading(); if (overlayDone && keepGoing) adaptQuality(now);
   window.__frames = (window.__frames || 0) + 1;
 }
 
@@ -165,7 +211,7 @@ function priceDoor() {
     const pt = C.PANEL_TYPES[state.panel]; if (pt.pct) add(`${pt.label} (+${pt.pct} %)`, Math.round(base.price * pt.pct / 100));
     if (d.priced === 'hs620') { const l = C.LIFT_620[state.lift620]; if (l.pct) add(`${l.label} (+${l.pct} %)`, Math.round(base.price * l.pct / 100)); }
     else { const l = C.LIFT[state.lift]; if (l.pct) add(`${l.label} (+${l.pct} %)`, Math.round(base.price * l.pct / 100)); if (l.fix) add(l.label, l.fix); }
-    if (state.windows !== 'none') { const win = C.WINDOWS[state.windows]; const n = Math.max(1, Math.min(4, Math.floor(state.w / 1050))); add(`${n} × ${win.label}`, win.price * n); }
+    if (state.windows !== 'none') { const win = C.WINDOWS[state.windows]; const n = Math.max(1, Math.min(4, Math.round(state.w / 1000))); add(`${n} × ${win.label}`, win.price * n); }
     if (state.fullvision !== 'none') { const fv = C.FULLVISION[state.fullvision]; add(`${fv.label}, ${(state.w / 1000).toFixed(2)} m`, Math.round(fv.perM * state.w / 1000)); }
     if (state.wicket !== 'none') { add(C.WICKET[state.wicket].label, C.WICKET[state.wicket].price); add(C.WICKET_LOCK[state.wicketLock].label, C.WICKET_LOCK[state.wicketLock].price); }
     if (state.ral !== '9002' && state.ral !== '7021') { const r = C.RAL.find(x => x.id === state.ral); add(`RAL ${r.id} ${r.name} außen (${r.metallic ? 96 : 34} €/m²)`, Math.round((r.metallic ? 96 : 34) * area)); }
@@ -176,7 +222,7 @@ function priceDoor() {
   const lk = C.LOCKS[state.lock]; if (lk.price) add(lk.label, lk.price);
   state.safety.forEach(k => { const s = C.SAFETY[k]; if (s && s.price) add(s.label, s.price); });
   state.controls.forEach(k => { const s = C.CONTROLS[k]; if (s && s.price) add(s.label, s.price); });
-  if (state.numbers) add('Dock-Ziffer schwarz', 31.37);
+  if (state.numbers) add('Dock-Ziffer', 31.37);
   if (state.trafficLight) add(C.ACCESSORIES.trafficLight.label, C.ACCESSORIES.trafficLight.price);
   notes.push(`Listenpreis ${base.rev}, gültig ab ${base.validFrom.split('-').reverse().join('.')}, netto ab Werk, ohne Montage und MwSt.`);
   return { lines, perBay, total: perBay * state.bays, notes };
@@ -216,7 +262,7 @@ function renderUI() {
   const sec = d.kind === 'sectional'; $('sectionalOpts').hidden = !sec;
   const pn = $('optPanel'); pn.innerHTML = ''; Object.entries(C.PANEL_TYPES).forEach(([id, v]) => chip(pn, id, v.label + (v.pct ? ` +${v.pct} %` : ''), state.panel === id));
   const lf = $('optLift'); lf.innerHTML = ''; if (d.priced === 'hs620') Object.entries(C.LIFT_620).forEach(([id, v]) => chip(lf, id, v.label + (v.pct ? ` +${v.pct} %` : ''), state.lift620 === id)); else Object.entries(C.LIFT).forEach(([id, v]) => chip(lf, id, v.label + (v.pct ? ` +${v.pct} %` : v.fix ? ` +${v.fix} €` : ''), state.lift === id));
-  const rc = $('optRal'); rc.innerHTML = ''; C.RAL.forEach(r => swatch(rc, r.id, `RAL ${r.id}<br>${r.name}${r.std ? '' : ''}`, r.hex, state.ral === r.id));
+  const rc = $('optRal'); rc.innerHTML = ''; C.RAL.forEach(r => swatch(rc, r.id, `RAL ${r.id}<br>${r.name}`, r.hex, state.ral === r.id));
   const wn = $('optWindows'); wn.innerHTML = ''; Object.entries(C.WINDOWS).forEach(([id, v]) => chip(wn, id, v.label + (v.price ? ` · ${C.eur(v.price)}/St.` : ''), state.windows === id));
   const fv = $('optFullvision'); fv.innerHTML = ''; Object.entries(C.FULLVISION).forEach(([id, v]) => chip(fv, id, v.label + (v.perM ? ` · ${C.eur(v.perM)}/m` : ''), state.fullvision === id));
   const wk = $('optWicket'); wk.innerHTML = ''; Object.entries(C.WICKET).forEach(([id, v]) => chip(wk, id, v.label + (v.price ? ` · ${C.eur(v.price)}` : ''), state.wicket === id));
@@ -247,6 +293,10 @@ function renderUI() {
   const mw = $('optMandoorW'); mw.innerHTML = ''; C.MANDOOR.widths.forEach(v => chip(mw, String(v), `${v} mm`, state.mandoorW === v)); const mh = $('optMandoorH'); mh.innerHTML = ''; C.MANDOOR.heights.forEach(v => chip(mh, String(v), `${v} mm`, state.mandoorH === v));
   const ml = $('optMandoorLock'); ml.innerHTML = ''; Object.entries(C.MANDOOR.locks).forEach(([id, v]) => chip(ml, id, v.label + (v.price ? ` · ${C.eur(v.price)}` : ''), state.mandoorLock === id));
   const pr = $('optPreset'); pr.innerHTML = ''; C.PRESETS.forEach(v => chip(pr, v.id, v.label, Object.entries(v.patch).every(([k, val]) => state[k] === val)));
+  // step summaries (visible in the collapsed step heads)
+  const ral = C.RAL.find(r => r.id === state.ral);
+  const sel = { step1: `${d.short} · ${state.w} × ${state.h}`, step2: [state.windows !== 'none' ? 'Fenster' : null, state.wicket !== 'none' ? 'Schlupftür' : null, C.OPERATION[state.operation].label.split(' ')[0]].filter(Boolean).join(', '), step3: `${state.leveller === 'none' ? 'ohne Brücke' : C.LEVELLERS[state.leveller].label.replace('Überladebrücke mit ', '')} · ${state.shelter === 'none' ? 'ohne Abdichtung' : C.SHELTERS[state.shelter].label.split(' ')[0]}`, step4: `${C.BUMPERS[state.bumper].label.split(' ')[0]} · ${state.restraint === 'none' ? 'ohne Sicherung' : C.RESTRAINTS[state.restraint].label.split(' ')[0]}`, step5: `${state.bays} Docks · ${C.TRUCKS[state.truck].label}` };
+  Object.entries(sel).forEach(([k, v]) => { const e = document.querySelector(`#${k} .cfg-sel`); if (e) e.textContent = v; });
   renderSummary();
 }
 function renderSummary() {
@@ -285,23 +335,31 @@ document.addEventListener('click', e => {
   if (map[box]) map[box]();
 });
 ['numbers', 'grille', 'trafficLight', 'bollards', 'wheelGuides', 'mandoorThermal'].forEach(k => { const i = $('opt_' + k); if (i) i.addEventListener('change', e => update({ [k]: e.target.checked }, k !== 'grille' && k !== 'mandoorThermal')); });
-function sizeInput(id, key) { const e = $(id); const commit = () => { let v = parseInt(e.value, 10); if (!Number.isFinite(v)) v = state[key]; update({ [key]: v }); }; e.addEventListener('change', commit); e.addEventListener('keydown', ev => { if (ev.key === 'Enter') { ev.preventDefault(); commit(); } }); }
+function sizeInput(id, key) { const e = $(id); const commit = () => { let v = parseInt(e.value, 10); if (!Number.isFinite(v)) v = state[key]; update({ [key]: v }); }; e.addEventListener('change', commit); e.addEventListener('keydown', ev => { if (ev.key === 'Enter') { ev.preventDefault(); commit(); e.blur(); } }); }
 sizeInput('inpW', 'w'); sizeInput('inpH', 'h');
 $('resetBtn').addEventListener('click', () => { history.replaceState(null, '', location.pathname); location.reload(); });
-$('dockBtn').addEventListener('click', () => setDock(dockTarget === 0));
+$('dockBtn').addEventListener('click', () => { setDock(dockTarget === 0); if (mobile && sheetState === 'full') setSheet('half'); });
 $('dockRange').addEventListener('input', e => { dockAnimStart = null; docking = dockTarget = e.target.value / 100; applyDocking(docking); $('dockBtn').querySelector('span').textContent = docking > .5 ? 'Lkw abfahren' : 'Lkw andocken'; });
-document.querySelectorAll('.cfg-views button').forEach(b => b.addEventListener('click', () => goView(b.dataset.view)));
+document.querySelectorAll('.cfg-views button').forEach(b => b.addEventListener('click', () => { goView(b.dataset.view); if (mobile && sheetState === 'full') setSheet('half'); }));
 document.querySelectorAll('.cfg-tab').forEach(t => t.addEventListener('click', () => setMode(t.dataset.mode)));
 document.querySelectorAll('.cfg-step-head').forEach(h => h.addEventListener('click', () => h.parentElement.classList.toggle('is-collapsed')));
-$('shareBtn').addEventListener('click', async () => { const url = location.origin + location.pathname + hash(); try { await navigator.clipboard.writeText(url); } catch (err) { prompt('Link:', url); } $('shareNote').hidden = false; setTimeout(() => { $('shareNote').hidden = true; }, 3500); });
+$('shareBtn').addEventListener('click', async () => { const url = location.origin + location.pathname + hash(); try { if (navigator.share && coarse) { await navigator.share({ title: 'Loading Systems Dock Studio', url }); return; } await navigator.clipboard.writeText(url); } catch (err) { prompt('Link:', url); } $('shareNote').hidden = false; setTimeout(() => { $('shareNote').hidden = true; }, 3500); });
 $('saveImage').addEventListener('click', () => { draw(); const a = document.createElement('a'); a.href = renderer.domElement.toDataURL('image/jpeg', .92); a.download = `loading-systems-dock-${state.door}-${state.w}x${state.h}.jpg`; a.click(); });
+$('cfgHint').querySelector('span').textContent = coarse ? 'Ein Finger dreht, zwei Finger zoomen' : 'Ziehen zum Drehen, Scrollen zum Zoomen, rechte Maustaste zum Verschieben';
+document.addEventListener('visibilitychange', () => { if (!document.hidden) invalidate(); });
 
 /* ------------------------------------------------------------------ Go */
-window.__cfg = { camera, controls, state, scene, world, renderer, dims: () => dims, update, setMode, goView, setDock, applyDocking, THREE, price: priceDoor };
+window.__cfg = { camera, controls, state, scene, world, renderer, dims: () => dims, update, setMode, goView, setDock, applyDocking, setSheet, invalidate, THREE, price: priceDoor };
 function start() {
-  buildWorld(); renderUI(); setMode(state.mode === 'studio' ? 'studio' : 'yard'); goView(q.get('view') || (state.mode === 'studio' ? 'studio' : 'yard'), true);
+  setSheet(mobile ? 'half' : 'half', false);
+  buildWorld(); renderUI(); setMode(state.mode === 'studio' ? 'studio' : 'yard');
   if (q.get('dock') === '1') { docking = dockTarget = 1; applyDocking(1); $('dockRange').value = 100; $('dockBtn').querySelector('span').textContent = 'Lkw abfahren'; }
+  goView(q.get('view') || (state.mode === 'studio' ? 'studio' : 'yard'), true);
   history.replaceState(null, '', location.pathname + location.search + hash());
   (async () => { try { await renderer.compileAsync(scene, camera); } catch (e) { } loop(performance.now()); })();
 }
-new GLTFLoader(manager).load('assets/models/door_parts.glb', g => { registerParts(g.scene); start(); }, undefined, err => { console.warn('door parts missing', err); start(); });
+let pending = 2; const ready = () => { if (--pending === 0) start(); };
+const gl = new GLTFLoader(manager);
+const MODEL_VER = '?v=4';
+gl.load('assets/models/door_parts.glb' + MODEL_VER, g => { registerParts(g.scene); ready(); }, undefined, err => { console.warn('door parts missing', err); ready(); });
+gl.load('assets/models/vehicles.glb' + MODEL_VER, g => { registerVehicles(g.scene, M); ready(); }, undefined, err => { console.warn('vehicles missing', err); ready(); });

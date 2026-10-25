@@ -1,6 +1,6 @@
 /* Loading Systems · site styles (brand: Open Sans, red #e00034, dark grey #333, white) */
 :root {
-  --red: #e00034; --red-dark: #b8002b; --ink: #333333; --ink-2: #111111; --text-soft: #5b6066; --muted: #8a8f95; --line: #e3e5e7; --line-dark: #c9ccd0; --bg-soft: #f4f5f6; --white: #fff;
+  --red: #e00034; --red-dark: #b8002b; --ink: #333333; --ink-2: #111111; --text-soft: #5b6066; --muted: #6f757b; --line: #e3e5e7; --line-dark: #c9ccd0; --bg-soft: #f4f5f6; --white: #fff;
   --font: "Open Sans", "Segoe UI", system-ui, -apple-system, Arial, sans-serif; --maxw: 1240px; --radius: 3px; --shadow: 0 14px 40px rgba(17, 17, 17, .14); --shadow-card: 0 2px 12px rgba(17, 17, 17, .07);
 }
 * { box-sizing: border-box; }
