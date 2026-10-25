@@ -361,10 +361,10 @@ function start() {
   history.replaceState(null, '', location.pathname + location.search + hash());
   (async () => { try { await renderer.compileAsync(scene, camera); } catch (e) { } loop(performance.now()); })();
 }
-let pending = 3; const ready = () => { if (--pending === 0) start(); };
+let pending = 5; const ready = () => { if (--pending === 0) start(); };
 const gl = new GLTFLoader(manager);
-const MODEL_VER = '?v=5';
+const MODEL_VER = '?v=6';
 gl.load('assets/models/door_parts.glb' + MODEL_VER, g => { registerParts(g.scene); ready(); }, undefined, err => { console.warn('door parts missing', err); ready(); });
 // procedural library (parked trailer, fallback) and the photoscan-style semi-trailer (Hunyuan3D from a generated reference, prepared in Blender)
 gl.load('assets/models/vehicles.glb' + MODEL_VER, g => { registerVehicles(g.scene, M, { rename: { semi: 'semi_proc', rigid: 'rigid_proc', van: 'van_proc' } }); ready(); }, undefined, err => { console.warn('vehicles missing', err); ready(); });
-gl.load('assets/models/semi.glb' + MODEL_VER, g => { registerVehicles(g.scene, M); ready(); }, undefined, err => { console.warn('semi missing', err); ready(); });
+['semi', 'rigid', 'van'].forEach(n => gl.load(`assets/models/${n}.glb` + MODEL_VER, g => { registerVehicles(g.scene, M); ready(); }, undefined, err => { console.warn(n + ' missing', err); ready(); }));
