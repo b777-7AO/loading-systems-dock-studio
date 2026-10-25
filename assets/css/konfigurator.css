@@ -73,7 +73,7 @@
 .cfg-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: .6rem; }
 .cfg-card { position: relative; border: 1.5px solid var(--line); border-radius: 3px; background: #fff; padding: .8rem .6rem .7rem; cursor: pointer; text-align: center; font: inherit; color: var(--ink-2); display: grid; justify-items: center; gap: .45rem; transition: .15s; min-height: 44px; }
 .cfg-card svg { width: 46px; height: 34px; color: var(--ink-2); fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
-.cfg-card span { display: grid; gap: .15rem; font-family: var(--font); line-height: 1.25; } .cfg-card strong { font-size: .78rem; font-weight: 700; line-height: 1.2; } .cfg-card small { display: block; font-size: .68rem; color: var(--muted); font-weight: 400; }
+.cfg-card span { display: grid; gap: .15rem; font-family: var(--font); line-height: 1.25; } .cfg-card strong { font-size: .78rem; font-weight: 700; line-height: 1.2; } .cfg-card small { display: block; font-size: .7rem; color: var(--muted); font-weight: 400; }
 .cfg-card:hover { border-color: var(--line-dark); }
 .cfg-card[aria-pressed="true"] { border-color: var(--red); background: #fdeef1; box-shadow: inset 0 0 0 1px var(--red); }
 .cfg-cards-list { grid-template-columns: 1fr; gap: .4rem; } .cfg-cards-list .cfg-card { text-align: left; grid-template-columns: 1fr; justify-items: start; padding: .7rem .8rem; } .cfg-cards-list .cfg-card strong { font-size: .84rem; } .cfg-cards-list .cfg-card small { font-size: .74rem; line-height: 1.35; }
@@ -92,7 +92,7 @@
 .cfg-swatch .dot { width: 40px; height: 40px; border-radius: 50%; border: 2px solid #fff; box-shadow: inset 0 0 0 1px rgba(0,0,0,.08), 0 0 0 1.5px var(--line); background-size: cover; transition: .15s; }
 .cfg-swatch:hover .dot { box-shadow: inset 0 0 0 1px rgba(0,0,0,.08), 0 0 0 1.5px var(--line-dark); }
 .cfg-swatch[aria-pressed="true"] .dot { box-shadow: inset 0 0 0 1px rgba(0,0,0,.08), 0 0 0 2.5px var(--red); }
-.cfg-swatch small { font-size: .68rem; line-height: 1.2; text-align: center; }
+.cfg-swatch small { font-size: .7rem; line-height: 1.2; text-align: center; }
 .cfg-swatch[aria-pressed="true"] small { color: var(--red); font-weight: 600; }
 .cfg-swatches.small .cfg-swatch .dot { width: 54px; height: 54px; border-radius: 6px; }
 
@@ -172,7 +172,7 @@
   .cfg-views > div { overflow-x: auto; scrollbar-width: none; justify-content: flex-start; } .cfg-views > div::-webkit-scrollbar { display: none; }
   .cfg-views button { padding: .5rem .75rem; font-size: .8rem; flex: none; min-height: 38px; }
   .cfg-dock { padding: .35rem .4rem .35rem .7rem; gap: .45rem; } .cfg-dock-row { flex: 1; min-width: 0; flex-direction: column; align-items: stretch; gap: .1rem; }
-  .cfg-dock-label { font-size: .66rem; min-width: 0; } .cfg-dock input[type=range] { width: 100%; }
+  .cfg-dock-label { font-size: .7rem; min-width: 0; } .cfg-dock input[type=range] { width: 100%; }
   .cfg-dock .btn-sm { padding: .55rem .7rem; font-size: .78rem; white-space: nowrap; min-height: 42px; } .cfg-dock .btn svg { width: 15px; height: 15px; }
   .cfg-save span { display: none; } .cfg-save { padding: .55rem .6rem; }
   .cfg-hint-overlay { bottom: auto; top: 62px; font-size: .78rem; }
