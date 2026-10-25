@@ -6,7 +6,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 
 export const DOCK_H = 1.2;      // dock height above yard
-export const PITCH = 4.2;       // bay pitch
+export const PITCH = 4.6;       // bay pitch
 export const WALL_T = .3;
 export const HALL_D = 24;       // hall depth
 export const HALL_H = 10;       // eaves height above warehouse floor
@@ -108,8 +108,8 @@ function sectionalLeaf(w, h, ph, st, M, d) {
         const win = WINDOWS[st.windows]; const count = Math.max(1, Math.min(4, st.windowCount || 1, Math.floor(w / .9))); const gap = Math.min(1.3, (w - .5) / count);
         for (let k = 0; k < count; k++) {
           const x = -gap * (count - 1) / 2 + gap * k; const frame = part(win.shape === 'oval' ? 'window_oval' : 'window_rect', x, 0, t / 2 - .01);
-          if (frame) p.add(frame); else p.add(box(win.w + .04, win.h + .04, t + .02, M.dark, x, 0, 0, { shadow: false }));
-          const glass = win.shape === 'oval' ? new THREE.Mesh(new THREE.CylinderGeometry(1, 1, .012, 32).scale(win.w / 2, 1, win.h / 2), M.glassTint) : box(win.w, win.h, .012, M.glassTint, 0, 0, 0, { shadow: false });
+          if (frame) p.add(frame); p.add(box(win.w + .06, win.h + .06, t + .012, M.plastic, x, 0, 0, { shadow: false }));
+          const glass = win.shape === 'oval' ? new THREE.Mesh(new THREE.CylinderGeometry(1, 1, .012, 32).scale(win.w / 2, 1, win.h / 2), M.glassDark) : box(win.w, win.h, .012, M.glassDark, 0, 0, 0, { shadow: false });
           if (win.shape === 'oval') glass.rotation.x = Math.PI / 2; glass.position.set(x, 0, t / 2 - .01); glass.castShadow = false; p.add(glass);
         }
       }
@@ -247,7 +247,7 @@ const logoPlane = (M, x, y, z, w = .62) => { const m = new THREE.Mesh(new THREE.
 /* ---------------------------------------------------------------- Dock shelter (403M curtain, 400NG cushion, 405 foam, 407NG inflatable, 408NG inflatable top, 421NG van) */
 export function buildShelter({ M, st, w, h }) {
   const g = new THREE.Group(); const S = SHELTERS[st.shelter]; if (!S || st.shelter === 'none') return { group: g, animate: () => {} };
-  const depth = .65, side = .62, top = .95; const W = w + 2 * side + .2, Hs = h + top + .15; const y0 = DOCK_H - .1;
+  const depth = .65, side = .55, top = .95; const W = w + 2 * side + .1, Hs = h + top + .12; const y0 = DOCK_H - .1;
   let animate = () => {};
   const marks = (zf, frameW = side, topH = top) => {   // white reflective marks as on the LS 403M: two parallel diagonals in each top corner, one vertical pill per side curtain
     [-1, 1].forEach(s => { [0, .19].forEach(dx => { const mk = rbox(.075, .38, .012, .03, M.shelterStripe, s * (W / 2 - frameW + .3 + dx), y0 + Hs - topH / 2 + .12 - dx * .55, zf, { shadow: false }); mk.rotation.z = s * .72; g.add(mk); });
@@ -255,16 +255,19 @@ export function buildShelter({ M, st, w, h }) {
     g.add(logoPlane(M, 0, y0 + Hs - topH / 2 + .12, zf + .01));
   };
   if (S.type === 'curtain' || S.type === 'inflTop') {
-    // 403M: galvanised frame box covered in black PVC, projecting roof, flexible front curtains
-    const frameM = M.shelterBlack, skin = M.shelterBlack, trim = M.shelterStripe;
-    g.add(box(W, .08, depth, frameM, 0, y0 + Hs, depth / 2));
-    [-1, 1].forEach(s => { g.add(box(.06, Hs, depth, frameM, s * (W / 2 - .03), y0 + Hs / 2, depth / 2));
-      g.add(box(side, Hs - .02, .03, s < 0 ? M.shelter403Side : M.shelter403SideR, s * (W / 2 - side / 2), y0 + Hs / 2, depth));
-      g.add(box(.05, Hs + .02, .02, trim, s * (W / 2 - .025), y0 + Hs / 2, depth + .015, { shadow: false }));   // white edge trim on the frame
-      g.add(box(.05, Hs, .05, trim, s * (W / 2 - .025), y0 + Hs / 2, depth - .02, { shadow: false })); });
-    g.add(box(W, top, .03, M.shelter403Top, 0, y0 + Hs - top / 2, depth)); g.add(box(W - .1, .03, depth - .05, skin, 0, y0 + Hs - .03, depth / 2));
-    g.add(box(W, .05, .02, trim, 0, y0 + Hs + .015, depth + .015, { shadow: false })); g.add(box(W, .05, depth, trim, 0, y0 + Hs + .035, depth / 2, { shadow: false }));
-    g.add(box(W + .2, .06, depth + .25, frameM, 0, y0 + Hs + .07, depth / 2 - .05));   // rain roof
+    // 403M / 408NG: one closed black frame box (galvanised frame under black PVC), flexible curtains flush in the front plane,
+    // white trim strip along the outer front edge, photo textures for the curtains (marks + white LS logo), hooks on the top curtain
+    const fr = M.shelterBlack, trim = M.shelterStripe, ct = .06;
+    const fb = new THREE.Group(); g.add(fb);
+    fb.add(box(W, .1, depth, fr, 0, y0 + Hs - .05, depth / 2));                                   // top plate
+    [-1, 1].forEach(s => fb.add(box(.1, Hs, depth, fr, s * (W / 2 - .05), y0 + Hs / 2, depth / 2)));   // side walls
+    [-1, 1].forEach(s => fb.add(box(side + .05, Hs, .04, fr, s * (W / 2 - side / 2 - .02), y0 + Hs / 2, .02))); fb.add(box(W, top + .05, .04, fr, 0, y0 + Hs - top / 2, .02));   // closed back ring against the facade (opening stays free)
+    fb.add(box(W + .12, .05, depth + .12, fr, 0, y0 + Hs + .02, depth / 2 - .04));                    // roof cover
+    [-1, 1].forEach(s => fb.add(box(side, Hs - top - .02, ct, s < 0 ? M.shelter403Side : M.shelter403SideR, s * (W / 2 - side / 2), y0 + (Hs - top) / 2 - .01, depth - ct / 2)));
+    fb.add(box(W, top, ct, M.shelter403Top, 0, y0 + Hs - top / 2, depth - ct / 2));
+    [-1, 1].forEach(s => fb.add(box(.05, Hs, .015, trim, s * (W / 2 - .025), y0 + Hs / 2, depth + .005, { shadow: false })));
+    fb.add(box(W, .05, .015, trim, 0, y0 + Hs - .025, depth + .005, { shadow: false }));
+    [-1, 1].forEach(s => { const r = new THREE.Mesh(new THREE.TorusGeometry(.04, .006, 8, 16), M.galvDark); r.position.set(s * (W / 2 - side - .1), y0 + Hs - top + .05, depth + .02); fb.add(r); });
     if (S.type === 'inflTop') { const cushion = rbox(W - .2, .55, depth - .15, .08, M.cushion, 0, y0 + Hs - top - .25, depth / 2); cushion.userData.dynamic = true; g.add(cushion); cushion.scale.y = .25; animate = t => { const e = ease(t); cushion.scale.y = .25 + .75 * e; cushion.position.y = y0 + Hs - top - .1 - (.55 * cushion.scale.y) / 2; }; }
   } else if (S.type === 'cushion' || S.type === 'foam') {
     const th = S.type === 'foam' ? .44 : .36; const r = S.type === 'foam' ? .12 : .05;
@@ -404,7 +407,7 @@ function forklift(M, x, z, rot = 0) {
 export function buildWarehouse({ mats, st, studio = false }) {
   const { M } = mats; const g = new THREE.Group(); const rigs = { doors: [], levellers: [], shelters: [], restraints: [], lights: [], traffic: [], trucks: [] };
   const w = st.w / 1000, h = st.h / 1000; const bays = studio ? 1 : st.bays; const lite = QUALITY.mobile;
-  const pitch = Math.max(PITCH, w + 1.6); const W = studio ? w + 3.2 : bays * pitch + 8; const H = DOCK_H + HALL_H; const D = studio ? 6 : HALL_D;
+  const pitch = Math.max(PITCH, w + 1.9); const W = studio ? w + 3.2 : bays * pitch + 8; const H = DOCK_H + HALL_H; const D = studio ? 6 : HALL_D;
   const x0 = -W / 2; const bayX = i => studio ? 0 : x0 + 4 + pitch * i + pitch / 2;
   const openings = []; for (let i = 0; i < bays; i++) openings.push({ x: bayX(i) - x0 - w / 2, y: DOCK_H, w, h });
   // mandoor (pedestrian door) next to the first bay
