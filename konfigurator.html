@@ -85,6 +85,7 @@
         <button type="button" class="cfg-step-head"><span class="num">2</span><span class="t">Verglasung, Schlupftür, Bedienung</span><span class="cfg-sel"></span><svg class="chev" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></button>
         <div class="cfg-step-body">
           <div class="cfg-subhead">Fenster</div><div class="cfg-chips" id="optWindows"></div>
+          <div id="windowCountRow"><div class="cfg-subhead">Anzahl je Tor</div><div class="cfg-chips" id="optWindowCount"></div></div>
           <div class="cfg-subhead">Full-Vision-Sektion</div><div class="cfg-chips" id="optFullvision"></div>
           <div class="cfg-subhead">Schlupftür</div><div class="cfg-chips" id="optWicket"></div>
           <div id="wicketLockRow"><div class="cfg-subhead">Schloss Schlupftür</div><div class="cfg-chips" id="optWicketLock"></div></div>
@@ -119,7 +120,8 @@
           <label class="cfg-switch"><input type="checkbox" id="opt_trafficLight"><span class="track"></span><span class="text"><strong>Ampel rot/grün</strong><small>LED, 7 m Kabel, schaltet mit der Wegfahrsicherung</small></span></label>
           <label class="cfg-switch"><input type="checkbox" id="opt_bollards"><span class="track"></span><span class="text"><strong>Sicherheitspoller 961</strong><small>Gelb-schwarz, beidseitig am Tor</small></span></label>
           <label class="cfg-switch"><input type="checkbox" id="opt_wheelGuides"><span class="track"></span><span class="text"><strong>Radführungen 970</strong><small>Führen den Lkw mittig ans Dock</small></span></label>
-          <label class="cfg-switch"><input type="checkbox" id="opt_numbers"><span class="track"></span><span class="text"><strong>Dock-Nummern</strong><small>Ziffern am Tor</small></span></label>
+          <label class="cfg-switch"><input type="checkbox" id="opt_numbers"><span class="track"></span><span class="text"><strong>Dock-Nummern</strong><small>Ziffer am Tor oder Schild an der Fassade</small></span></label>
+          <div id="numberStyleRow"><div class="cfg-chips" id="optNumberStyle"></div></div>
           <div class="cfg-subhead">Dock-Steuerung</div><div class="cfg-chips" id="optDockControl"></div><p class="cfg-help" id="dockControlDesc"></p>
         </div>
       </section>
@@ -155,6 +157,6 @@
 
   <div data-include="partials/footer.html" data-root=""></div>
   <script src="assets/js/main.js"></script>
-  <script type="module" src="assets/js/konfigurator.js?v=20"></script>
+  <script type="module" src="assets/js/konfigurator.js?v=21"></script>
 </body>
 </html>

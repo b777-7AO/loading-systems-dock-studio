@@ -67,13 +67,14 @@ export function part(name, x = 0, y = 0, z = 0, opt = {}) {
 }
 /* Blender vehicle library (assets/models/vehicles.glb): roots 'semi' (trailer + tractor), 'rigid', 'van'; wheels are named wheel_* with the axle on X */
 export const VEHICLES = {};
-export function registerVehicles(gltfScene, M) {
+export function registerVehicles(gltfScene, M, { rename = {} } = {}) {
   gltfScene.traverse(o => {
     if (!o.isMesh) return; o.castShadow = true; o.receiveShadow = true; o.userData.shared = true;
     const m = M.vehicleMap[o.material.name]; if (m) o.material = m;
-    if (/decal/.test(o.name) || o.material === M.decalDark) { o.castShadow = false; o.receiveShadow = false; o.renderOrder = 2; }
+    else if (o.material.map) { o.material.envMapIntensity = 1.0; o.material.metalness = .25; o.material.roughness = 1.0; }   // AI-scanned vehicle: keep its PBR textures, tame the metallic map (painted panels, not chrome)
+    if (/decal/.test(o.name) || o.material === M.decalDark) { o.material = M.decalDark; o.castShadow = false; o.receiveShadow = false; o.renderOrder = 2; }
   });
-  gltfScene.children.forEach(c => { c.position.set(0, 0, 0); c.rotation.set(0, 0, 0); VEHICLES[c.name] = c; });
+  gltfScene.children.forEach(c => { c.position.set(0, 0, 0); c.rotation.set(0, 0, 0); VEHICLES[rename[c.name] || c.name] = c; });
 }
 /* finger-safe sandwich panel: tongue on top, groove below, extruded along X. Front face at +z (z = t), back face at z = 0, bottom at y = 0.
    ExtrudeGeometry maps the big faces to U = height (m), V = width (m), which the micro-profile normal map relies on */
@@ -91,7 +92,8 @@ function sectionalLeaf(w, h, ph, st, M, d) {
   const faceMat = d.surface === 'micro' ? M.doorMicro : M.door;
   const fvIndex = st.fullvision !== 'none' ? n - 2 : -1;
   // windows sit in the panel around eye height (the LS photos show them at ~60 % of the door height)
-  let winIndex = st.windows !== 'none' ? Math.max(1, Math.min(n - 2, Math.round(h * .62 / H - .5))) : -1; if (winIndex === fvIndex) winIndex--;
+  let winIndex = st.windows !== 'none' ? Math.max(1, Math.min(n - 2, Math.round(h * .70 / H - .5))) : -1; if (winIndex === fvIndex) winIndex--;
+  const numIndex = st.numbers && st.numberStyle !== 'plate' ? Math.max(0, Math.min(n - 1, Math.round(h * .30 / H - .5))) : -1;
   const nCentre = Math.max(0, Math.round(w / 1.2) - 1);
   for (let i = 0; i < n; i++) {
     const p = new THREE.Group(); p.userData.dynamic = true;
@@ -103,7 +105,7 @@ function sectionalLeaf(w, h, ph, st, M, d) {
     } else {
       const body = new THREE.Mesh(panelGeometry(w, H, t), [M.doorEdge, faceMat]); body.position.set(0, -H / 2, -t / 2); body.castShadow = true; body.receiveShadow = true; p.add(body);
       if (i === winIndex) {
-        const win = WINDOWS[st.windows]; const count = Math.max(1, Math.min(4, Math.round(w / 1.0))); const gap = Math.min(1.15, (w - .5) / count);
+        const win = WINDOWS[st.windows]; const count = Math.max(1, Math.min(4, st.windowCount || 1, Math.floor(w / .9))); const gap = Math.min(1.3, (w - .5) / count);
         for (let k = 0; k < count; k++) {
           const x = -gap * (count - 1) / 2 + gap * k; const frame = part(win.shape === 'oval' ? 'window_oval' : 'window_rect', x, 0, t / 2 - .01);
           if (frame) p.add(frame); else p.add(box(win.w + .04, win.h + .04, t + .02, M.dark, x, 0, 0, { shadow: false }));
@@ -111,6 +113,7 @@ function sectionalLeaf(w, h, ph, st, M, d) {
           if (win.shape === 'oval') glass.rotation.x = Math.PI / 2; glass.position.set(x, 0, t / 2 - .01); glass.castShadow = false; p.add(glass);
         }
       }
+      if (i === numIndex && st.bayNo != null) { const dg = digitDecal(st.bayNo, H * .92); dg.position.set(w * .12, 0, t / 2 + .003); p.add(dg); }
       // hinges with rollers at both edges, centre hinges along the joint (on the inside face)
       if (i < n - 1) { const y = H / 2; const l = part('side_hinge', -w / 2 + .03, y, -t / 2 - .002, { rotY: Math.PI }); const r = part('side_hinge', w / 2 - .03, y, -t / 2 - .002, { rotY: Math.PI });
         if (l) p.add(l); if (r) { r.scale.x = -1; p.add(r); } for (let k = 1; k <= nCentre; k++) { const c = part('centre_hinge', -w / 2 + k * (w / (nCentre + 1)), y, -t / 2 - .002, { rotY: Math.PI }); if (c) p.add(c); } }
@@ -245,19 +248,22 @@ export function buildShelter({ M, st, w, h }) {
   const g = new THREE.Group(); const S = SHELTERS[st.shelter]; if (!S || st.shelter === 'none') return { group: g, animate: () => {} };
   const depth = .65, side = .62, top = .95; const W = w + 2 * side + .2, Hs = h + top + .15; const y0 = DOCK_H - .1;
   let animate = () => {};
-  const marks = (zf, frameW = side, topH = top) => {   // white reflective marks: two diagonals at the top corners, one vertical slot per side
-    [-1, 1].forEach(s => { const mk = box(.12, .42, .012, M.shelterStripe, s * (W / 2 - frameW - .35), y0 + Hs - topH / 2 + .05, zf, { shadow: false }); mk.rotation.z = s * .6; g.add(mk);
-      g.add(box(.1, Hs * .22, .012, M.shelterStripe, s * (W / 2 - frameW / 2), y0 + Hs * .42, zf, { shadow: false })); });
+  const marks = (zf, frameW = side, topH = top) => {   // white reflective marks as on the LS 403M: two parallel diagonals in each top corner, one vertical pill per side curtain
+    [-1, 1].forEach(s => { [0, .19].forEach(dx => { const mk = rbox(.075, .38, .012, .03, M.shelterStripe, s * (W / 2 - frameW + .3 + dx), y0 + Hs - topH / 2 + .12 - dx * .55, zf, { shadow: false }); mk.rotation.z = s * .72; g.add(mk); });
+      g.add(rbox(.1, Hs * .2, .012, .045, M.shelterStripe, s * (W / 2 - frameW / 2), y0 + Hs * .44, zf, { shadow: false })); });
     const sl = part('shelter_logo', 0, y0 + Hs - topH / 2 + .12, zf + .01, { shadow: false }); if (sl) g.add(sl);
   };
   if (S.type === 'curtain' || S.type === 'inflTop') {
     // 403M: galvanised frame box covered in black PVC, projecting roof, flexible front curtains
-    const frameM = M.shelterFrame, skin = M.shelterBlack;
+    const frameM = M.shelterBlack, skin = M.shelterBlack, trim = M.shelterStripe;
     g.add(box(W, .08, depth, frameM, 0, y0 + Hs, depth / 2));
-    [-1, 1].forEach(s => { g.add(box(.06, Hs, depth, frameM, s * (W / 2 - .03), y0 + Hs / 2, depth / 2)); g.add(box(.02, Hs, depth - .05, skin, s * (W / 2 - .07), y0 + Hs / 2, depth / 2 - .02));
-      g.add(box(side, Hs - .02, .03, skin, s * (W / 2 - side / 2), y0 + Hs / 2, depth)); g.add(box(.025, Hs - .06, .06, frameM, s * (W / 2 - side - .01), y0 + Hs / 2, depth - .02, { shadow: false })); });
+    [-1, 1].forEach(s => { g.add(box(.06, Hs, depth, frameM, s * (W / 2 - .03), y0 + Hs / 2, depth / 2));
+      g.add(box(side, Hs - .02, .03, skin, s * (W / 2 - side / 2), y0 + Hs / 2, depth));
+      g.add(box(.05, Hs + .02, .02, trim, s * (W / 2 - .025), y0 + Hs / 2, depth + .015, { shadow: false }));   // white edge trim on the frame
+      g.add(box(.05, Hs, .05, trim, s * (W / 2 - .025), y0 + Hs / 2, depth - .02, { shadow: false })); });
     g.add(box(W, top, .03, skin, 0, y0 + Hs - top / 2, depth)); g.add(box(W - .1, .03, depth - .05, skin, 0, y0 + Hs - .03, depth / 2));
-    g.add(box(W + .25, .1, depth + .3, frameM, 0, y0 + Hs + .09, depth / 2 - .05));   // rain roof
+    g.add(box(W, .05, .02, trim, 0, y0 + Hs + .015, depth + .015, { shadow: false })); g.add(box(W, .05, depth, trim, 0, y0 + Hs + .035, depth / 2, { shadow: false }));
+    g.add(box(W + .2, .06, depth + .25, frameM, 0, y0 + Hs + .07, depth / 2 - .05));   // rain roof
     marks(depth + .02);
     if (S.type === 'inflTop') { const cushion = rbox(W - .2, .55, depth - .15, .08, M.cushion, 0, y0 + Hs - top - .25, depth / 2); cushion.userData.dynamic = true; g.add(cushion); cushion.scale.y = .25; animate = t => { const e = ease(t); cushion.scale.y = .25 + .75 * e; cushion.position.y = y0 + Hs - top - .1 - (.55 * cushion.scale.y) / 2; }; }
   } else if (S.type === 'cushion' || S.type === 'foam') {
@@ -347,6 +353,12 @@ export function buildTrafficLight({ M, w, h }) {
   const redOn = new THREE.MeshStandardMaterial({ color: 0xff2a2a, emissive: 0xff0000, emissiveIntensity: 1.6 });
   return { group: g, set: state => { r.material = state === 'red' ? redOn : M.lampOff; gr.material = state === 'green' ? M.green : M.lampOff; } };
 }
+const digitCache = new Map();
+export function digitDecal(n, size) {
+  const key = String(n); let t = digitCache.get(key);
+  if (!t) { const c = document.createElement('canvas'); c.width = 256; c.height = 512; const ctx = c.getContext('2d'); ctx.clearRect(0, 0, 256, 512); ctx.fillStyle = '#1a1a1a'; ctx.font = 'bold 440px "Open Sans", Arial, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(key, 128, 268); t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; digitCache.set(key, t); }
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(size / 2, size), new THREE.MeshStandardMaterial({ map: t, transparent: true, roughness: .7, polygonOffset: true, polygonOffsetFactor: -2, depthWrite: false })); m.castShadow = false; m.receiveShadow = false; m.renderOrder = 2; return m;
+}
 export function numberPlate({ M, n, w, h }) {
   const c = document.createElement('canvas'); c.width = 256; c.height = 256; const ctx = c.getContext('2d'); ctx.fillStyle = '#e00034'; ctx.fillRect(0, 0, 256, 256); ctx.fillStyle = '#fff'; ctx.font = 'bold 170px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(String(n), 128, 136);
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
@@ -356,7 +368,7 @@ export function numberPlate({ M, n, w, h }) {
 /* ---------------------------------------------------------------- Trucks (Blender library, see ~/LS-work/blender/vehicles.py) */
 export function buildTruck({ M, kind, trailerOnly = false }) {
   const g = new THREE.Group(); g.userData.dynamic = true; const T = TRUCKS[kind]; if (!T || kind === 'none') return { group: g, animate: () => {}, len: 0, bedH: null };
-  const tpl = VEHICLES[T.model]; const wheels = [];
+  const tpl = (trailerOnly && VEHICLES[T.model + '_proc']) || VEHICLES[T.model] || VEHICLES[T.model + '_proc']; const wheels = [];
   if (tpl) {
     const v = tpl.clone(); g.add(v);
     v.traverse(o => { if (o.name.startsWith('wheel')) wheels.push(o); if (trailerOnly && o.name === 'tractor') o.visible = false; });
@@ -443,7 +455,8 @@ export function buildWarehouse({ mats, st, studio = false }) {
     const cx = bayX(i); const bay = new THREE.Group(); bay.position.x = cx; g.add(bay);
     // dock edge plate
     bay.add(box(w + .4, .08, .3, M.galv, 0, DOCK_H - .04, .12, { shadow: false }));
-    const door = buildDoor({ M, st, w, h }); bay.add(door.group); rigs.doors.push(door);
+    const door = buildDoor({ M, st: { ...st, bayNo: i + 1 }, w, h }); bay.add(door.group); rigs.doors.push(door);
+    bay.add(box(w + .7, .14, .02, M.yellowStripe, 0, DOCK_H - .09, .07, { shadow: false }));   // yellow dock-edge marking
     const truckKind = st.truck; const bedH = TRUCKS[truckKind] && truckKind !== 'none' ? TRUCKS[truckKind].bedH : null;
     const lev = buildLeveller({ M, st, w, bedH }); bay.add(lev.group); rigs.levellers.push(lev);
     const sh = buildShelter({ M, st, w, h }); bay.add(sh.group); rigs.shelters.push(sh);
@@ -451,7 +464,7 @@ export function buildWarehouse({ mats, st, studio = false }) {
     const rs = buildRestraint({ M, st, w }); bay.add(rs.group); rigs.restraints.push(rs);
     const dl = buildDockLight({ M, st, w, h }); bay.add(dl.group); rigs.lights.push(dl);
     if (st.trafficLight) { const tl = buildTrafficLight({ M, w, h }); bay.add(tl.group); rigs.traffic.push(tl); }
-    if (st.numbers) bay.add(numberPlate({ M, n: i + 1, w, h }));
+    if (st.numbers && st.numberStyle === 'plate') bay.add(numberPlate({ M, n: i + 1, w, h }));
     if (st.bollards) [-1, 1].forEach(s => { const b = part('bollard', s * (w / 2 + .85), 0, .55); if (b) bay.add(b); else bay.add(cyl(.08, 1.1, M.yellow, s * (w / 2 + .85), .55, .55, 16)); });
     if (st.wheelGuides) [-1, 1].forEach(s => { const x = s * 1.55; const t = cyl(.06, 4.6, M.yellow, x, .18, 4.6, 12); t.rotation.x = Math.PI / 2; bay.add(t); [2.5, 6.6].forEach(z => bay.add(cyl(.06, .3, M.yellow, x, .1, z, 12))); });
     // dock control box inside next to the door

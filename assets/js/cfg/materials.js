@@ -37,13 +37,13 @@ export function createMaterials(renderer, manager, { mobile = false } = {}) {
     for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) { const ph = (x % period) / period; const s = Math.sin(ph * Math.PI * 2); const nx = -s * depth; const i = (y * N + x) * 4; img.data[i] = 128 + nx * 90; img.data[i + 1] = 128; img.data[i + 2] = 255; img.data[i + 3] = 255; }
     ctx.putImageData(img, 0, 0); const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; return t;
   }
-  function microProfileNormal(grooves = 4, grooveW = .06, depth = 1.0, panelH = .5) {
+  function microProfileNormal(grooves = 5, grooveW = .045, depth = 1.15, panelH = .5) {
     // the door panel ExtrudeGeometry maps U = height in metres, so one tile along U = one panel: `grooves` shallow V-grooves plus a joint shadow at u = 0
     const N = 256, c = document.createElement('canvas'); c.width = c.height = N; const ctx = c.getContext('2d'); const img = ctx.createImageData(N, N);
     for (let x = 0; x < N; x++) {
       const u = x / N; let nx = 0;
       for (let k = 0; k < grooves; k++) { const cpos = (k + .5) / grooves; const d = (u - cpos) / grooveW; if (Math.abs(d) < 1) nx += (d < 0 ? -1 : 1) * (1 - Math.abs(d)) * depth; }
-      const j = u < .025 ? -(1 - u / .025) : u > .975 ? (u - .975) / .025 : 0; nx += j * 1.3;
+      const j = u < .02 ? -(1 - u / .02) : u > .98 ? (u - .98) / .02 : 0; nx += j * .9;
       const r = 128 + Math.max(-1, Math.min(1, nx)) * 90;
       for (let y = 0; y < N; y++) { const i = (y * N + x) * 4; img.data[i] = r; img.data[i + 1] = 128; img.data[i + 2] = 255; img.data[i + 3] = 255; }
     }

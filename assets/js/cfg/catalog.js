@@ -103,7 +103,7 @@ export const ACCESSORIES = { trafficLight: { label: 'Ampel 934 rot/grün', price
 export const DOCK_CONTROL = { basic: { label: 'Einzelsteuerungen', desc: 'Tor, Überladebrücke und Torabdichtung je eigene Bedienung.' }, combi: { label: 'Kombisteuerung', desc: 'Tor, Brücke, Abdichtung und Wegfahrsicherung in einem Gehäuse, verriegelt in logischer Reihenfolge.' }, dockMgmt: { label: 'Dock Management System', desc: 'Alle Docks zentral überwacht: Status, Ampeln, Verriegelung.' } };
 
 export const FACADES = [{ id: 'panel_light', name: 'Sandwichpaneel hellgrau', hex: '#d8dadb' }, { id: 'panel_white', name: 'Sandwichpaneel weiß', hex: '#eceeee' }, { id: 'panel_dark', name: 'Sandwichpaneel anthrazit', hex: '#4a4f53' }, { id: 'brick', name: 'Klinker', hex: '#8d5b4a' }];
-export const TRUCKS = { none: { label: 'Kein Fahrzeug' }, truck: { label: 'Sattelzug 13,6 m', model: 'semi', len: 18.1, bedH: 1.30, wheelR: .51 }, rigid: { label: 'Lkw 7,5 t', model: 'rigid', len: 9.3, bedH: 1.12, wheelR: .43 }, van: { label: 'Lieferwagen', model: 'van', len: 5.6, bedH: .62, wheelR: .36 } };
+export const TRUCKS = { none: { label: 'Kein Fahrzeug' }, truck: { label: 'Sattelzug 13,6 m', model: 'semi', len: 16.6, bedH: 1.30, wheelR: .51 }, rigid: { label: 'Lkw 7,5 t', model: 'rigid', len: 9.3, bedH: 1.12, wheelR: .43 }, van: { label: 'Lieferwagen', model: 'van', len: 5.6, bedH: .62, wheelR: .36 } };
 
 export const LIMITS = { w: [2000, 8000], h: [2000, 6500], bays: [1, 6] };
 export const PRESETS = [

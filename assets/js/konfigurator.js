@@ -20,9 +20,9 @@ let mobile = mobileMQ.matches; QUALITY.mobile = mobile || coarse;
 
 /* ------------------------------------------------------------------ State */
 const state = {
-  door: 'dockdoor', w: 3000, h: 3250, ral: '9002', panel: 'industrie', lift: 'normal', lift620: 'SL', windows: 'rect', fullvision: 'none', wicket: 'none', wicketLock: 'handle',
-  operation: 'rope', lock: 'none', safety: [], controls: [], numbers: true, grille: false,
-  leveller: 'tele', levellerLen: 2500, levellerW: 2000, levellerCap: 'std', shelter: 'inflatable', bumper: 'nylon', restraint: 'auto', light: 'led', trafficLight: true, bollards: true, wheelGuides: true, dockControl: 'combi',
+  door: 'dockdoor', w: 3000, h: 3250, ral: '9002', panel: 'industrie', lift: 'normal', lift620: 'SL', windows: 'rect', windowCount: 1, fullvision: 'none', wicket: 'none', wicketLock: 'handle',
+  operation: 'rope', lock: 'none', safety: [], controls: [], numbers: true, numberStyle: 'door', grille: false,
+  leveller: 'tele', levellerLen: 2500, levellerW: 2000, levellerCap: 'std', shelter: 'curtain', bumper: 'rubber', restraint: 'auto', light: 'led', trafficLight: true, bollards: true, wheelGuides: true, dockControl: 'combi',
   mandoor: 'none', mandoorW: 1000, mandoorH: 2125, mandoorLock: 'std', mandoorThermal: true,
   bays: 3, activeBay: 1, truck: 'truck', truckBays: 'one', facade: 'panel_light', interiorLight: 'led_line',
   mode: 'yard', view: 'yard',
@@ -44,6 +44,7 @@ function normalise() {
   if (d.priced === 'hs620') state.operation = 'motor';
   if (state.door === 'hs620' && !C.LIFT_620[state.lift620]) state.lift620 = 'SL';
   if (!C.RAL.some(r => r.id === state.ral)) state.ral = '9002';
+  state.windowCount = clamp(state.windowCount || 1, [1, Math.max(1, Math.min(4, Math.floor(state.w / 900)))]); if (!['door', 'plate'].includes(state.numberStyle)) state.numberStyle = 'door';
   if (state.mode === 'studio') state.view = 'studio';
 }
 readHash();
@@ -211,7 +212,7 @@ function priceDoor() {
     const pt = C.PANEL_TYPES[state.panel]; if (pt.pct) add(`${pt.label} (+${pt.pct} %)`, Math.round(base.price * pt.pct / 100));
     if (d.priced === 'hs620') { const l = C.LIFT_620[state.lift620]; if (l.pct) add(`${l.label} (+${l.pct} %)`, Math.round(base.price * l.pct / 100)); }
     else { const l = C.LIFT[state.lift]; if (l.pct) add(`${l.label} (+${l.pct} %)`, Math.round(base.price * l.pct / 100)); if (l.fix) add(l.label, l.fix); }
-    if (state.windows !== 'none') { const win = C.WINDOWS[state.windows]; const n = Math.max(1, Math.min(4, Math.round(state.w / 1000))); add(`${n} × ${win.label}`, win.price * n); }
+    if (state.windows !== 'none') { const win = C.WINDOWS[state.windows]; const n = state.windowCount || 1; add(`${n} × ${win.label}`, win.price * n); }
     if (state.fullvision !== 'none') { const fv = C.FULLVISION[state.fullvision]; add(`${fv.label}, ${(state.w / 1000).toFixed(2)} m`, Math.round(fv.perM * state.w / 1000)); }
     if (state.wicket !== 'none') { add(C.WICKET[state.wicket].label, C.WICKET[state.wicket].price); add(C.WICKET_LOCK[state.wicketLock].label, C.WICKET_LOCK[state.wicketLock].price); }
     if (state.ral !== '9002' && state.ral !== '7021') { const r = C.RAL.find(x => x.id === state.ral); add(`RAL ${r.id} ${r.name} außen (${r.metallic ? 96 : 34} €/m²)`, Math.round((r.metallic ? 96 : 34) * area)); }
@@ -264,6 +265,7 @@ function renderUI() {
   const lf = $('optLift'); lf.innerHTML = ''; if (d.priced === 'hs620') Object.entries(C.LIFT_620).forEach(([id, v]) => chip(lf, id, v.label + (v.pct ? ` +${v.pct} %` : ''), state.lift620 === id)); else Object.entries(C.LIFT).forEach(([id, v]) => chip(lf, id, v.label + (v.pct ? ` +${v.pct} %` : v.fix ? ` +${v.fix} €` : ''), state.lift === id));
   const rc = $('optRal'); rc.innerHTML = ''; C.RAL.forEach(r => swatch(rc, r.id, `RAL ${r.id}<br>${r.name}`, r.hex, state.ral === r.id));
   const wn = $('optWindows'); wn.innerHTML = ''; Object.entries(C.WINDOWS).forEach(([id, v]) => chip(wn, id, v.label + (v.price ? ` · ${C.eur(v.price)}/St.` : ''), state.windows === id));
+  const wc = $('optWindowCount'); wc.innerHTML = ''; const maxWin = Math.max(1, Math.min(4, Math.floor(state.w / 900))); for (let i = 1; i <= maxWin; i++) chip(wc, String(i), i === 1 ? '1 Fenster' : `${i} Fenster`, state.windowCount === i); $('windowCountRow').hidden = state.windows === 'none';
   const fv = $('optFullvision'); fv.innerHTML = ''; Object.entries(C.FULLVISION).forEach(([id, v]) => chip(fv, id, v.label + (v.perM ? ` · ${C.eur(v.perM)}/m` : ''), state.fullvision === id));
   const wk = $('optWicket'); wk.innerHTML = ''; Object.entries(C.WICKET).forEach(([id, v]) => chip(wk, id, v.label + (v.price ? ` · ${C.eur(v.price)}` : ''), state.wicket === id));
   const wl = $('optWicketLock'); wl.innerHTML = ''; Object.entries(C.WICKET_LOCK).forEach(([id, v]) => chip(wl, id, v.label + (v.price ? ` · ${C.eur(v.price)}` : ''), state.wicketLock === id)); $('wicketLockRow').hidden = state.wicket === 'none';
@@ -272,6 +274,7 @@ function renderUI() {
   const sf = $('optSafety'); sf.innerHTML = ''; Object.entries(C.SAFETY).forEach(([id, v]) => chip(sf, id, v.label + (v.price ? ` · ${C.eur(v.price)}` : ' · Serie'), state.safety.includes(id)));
   const ct = $('optControls'); ct.innerHTML = ''; Object.entries(C.CONTROLS).forEach(([id, v]) => chip(ct, id, v.label + ` · ${C.eur2(v.price)}`, state.controls.includes(id)));
   ['numbers', 'grille', 'trafficLight', 'bollards', 'wheelGuides', 'mandoorThermal'].forEach(k => { const i = $('opt_' + k); if (i) i.checked = !!state[k]; });
+  const ns = $('optNumberStyle'); ns.innerHTML = ''; [['door', 'Aufgemalt am Tor'], ['plate', 'Rotes Schild an der Fassade']].forEach(([id, l]) => chip(ns, id, l, state.numberStyle === id)); $('numberStyleRow').hidden = !state.numbers;
   // dock
   const lv = $('optLeveller'); lv.innerHTML = ''; Object.entries(C.LEVELLERS).forEach(([id, v]) => card(lv, id, v.label, v.desc || 'Ohne Rampe', state.leveller === id));
   const ll = $('optLevellerLen'); ll.innerHTML = ''; C.LEVELLER_SIZES.lengths.forEach(v => chip(ll, String(v), `${v} mm`, state.levellerLen === v)); const lw = $('optLevellerW'); lw.innerHTML = ''; C.LEVELLER_SIZES.widths.forEach(v => chip(lw, String(v), `${v} mm`, state.levellerW === v));
@@ -325,7 +328,7 @@ function update(patch, rebuild = true) {
 document.addEventListener('click', e => {
   const b = e.target.closest('button[data-id]'); if (!b) return; const id = b.dataset.id, box = b.parentElement.id;
   const num = v => parseInt(v, 10);
-  const map = { optDoor: () => update({ door: id }), optPanel: () => update({ panel: id }), optLift: () => update(state.door === 'hs620' ? { lift620: id } : { lift: id }), optRal: () => update({ ral: id }), optWindows: () => update({ windows: id }), optFullvision: () => update({ fullvision: id }),
+  const map = { optDoor: () => update({ door: id }), optPanel: () => update({ panel: id }), optLift: () => update(state.door === 'hs620' ? { lift620: id } : { lift: id }), optRal: () => update({ ral: id }), optWindows: () => update({ windows: id }), optWindowCount: () => update({ windowCount: num(id) }), optNumberStyle: () => update({ numberStyle: id }), optFullvision: () => update({ fullvision: id }),
     optWicket: () => update({ wicket: id }), optWicketLock: () => update({ wicketLock: id }, false), optOperation: () => update({ operation: id }), optLock: () => update({ lock: id }, false),
     optSafety: () => update({ safety: state.safety.includes(id) ? state.safety.filter(x => x !== id) : [...state.safety, id] }, false), optControls: () => update({ controls: state.controls.includes(id) ? state.controls.filter(x => x !== id) : [...state.controls, id] }, false),
     optLeveller: () => update({ leveller: id }), optLevellerLen: () => update({ levellerLen: num(id) }), optLevellerW: () => update({ levellerW: num(id) }), optLevellerCap: () => update({ levellerCap: id }, false), optShelter: () => update({ shelter: id }), optBumper: () => update({ bumper: id }),
@@ -358,8 +361,10 @@ function start() {
   history.replaceState(null, '', location.pathname + location.search + hash());
   (async () => { try { await renderer.compileAsync(scene, camera); } catch (e) { } loop(performance.now()); })();
 }
-let pending = 2; const ready = () => { if (--pending === 0) start(); };
+let pending = 3; const ready = () => { if (--pending === 0) start(); };
 const gl = new GLTFLoader(manager);
-const MODEL_VER = '?v=4';
+const MODEL_VER = '?v=5';
 gl.load('assets/models/door_parts.glb' + MODEL_VER, g => { registerParts(g.scene); ready(); }, undefined, err => { console.warn('door parts missing', err); ready(); });
-gl.load('assets/models/vehicles.glb' + MODEL_VER, g => { registerVehicles(g.scene, M); ready(); }, undefined, err => { console.warn('vehicles missing', err); ready(); });
+// procedural library (parked trailer, fallback) and the photoscan-style semi-trailer (Hunyuan3D from a generated reference, prepared in Blender)
+gl.load('assets/models/vehicles.glb' + MODEL_VER, g => { registerVehicles(g.scene, M, { rename: { semi: 'semi_proc', rigid: 'rigid_proc', van: 'van_proc' } }); ready(); }, undefined, err => { console.warn('vehicles missing', err); ready(); });
+gl.load('assets/models/semi.glb' + MODEL_VER, g => { registerVehicles(g.scene, M); ready(); }, undefined, err => { console.warn('semi missing', err); ready(); });
