@@ -145,7 +145,7 @@ function sectionalLeaf(w, h, ph, st, M, d) {
   // bottom panel: seal profile, flush handle, Loading Systems logo plate; wicket outline
   const bottom = parts[0].p;
   if (st.stepDown) {   // stepped dock: T-shaped leaf, a narrower extension below the bottom panel drops into the lower zone in front of the leveller
-    const ext = new THREE.Mesh(panelGeometry(st.stepW - .02, st.stepDown, t), faceMat); ext.position.set(-(st.stepW - .02) / 2, -H / 2 - st.stepDown, 0); ext.castShadow = ext.receiveShadow = true; bottom.add(ext);
+    const ext = new THREE.Mesh(panelGeometry(st.stepW - .02, st.stepDown, t), faceMat); ext.position.set(0, -H / 2 - st.stepDown, 0);   /* panelGeometry is centred in x */ ext.castShadow = ext.receiveShadow = true; bottom.add(ext);
     bottom.add(box(st.stepW - .02, .03, .05, M.black, 0, -H / 2 - st.stepDown + .015, t / 2, { shadow: false }));   // seal under the extension
   }
   const seal = part('bottom_seal', 0, -H / 2 + .01, 0, { scale: [w, 1, 1], shadow: false }); if (seal) bottom.add(seal); else bottom.add(box(w, .03, .05, M.black, 0, -H / 2 + .015, 0, { shadow: false }));
