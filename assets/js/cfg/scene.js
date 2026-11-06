@@ -205,15 +205,16 @@ export function trackGeometry({ Ht, R, Rr, zo, horizLen, vertical, mirror = fals
 export function buildDoor({ M, st, w, h }) {
   const d = DOORS[st.door]; const g = new THREE.Group(); g.position.y = DOCK_H; const zL = -WALL_T - .06;
   let animate = () => {};
-  const hl = Math.min(d.priced === 'hs620' ? { SL: 0, HL750: .75, HL1370: 1.37, HL2000: 2.0, VL: 99 }[st.lift620 || 'SL'] : (LIFT[st.lift] || LIFT.normal).hl, HALL_H - h - .6);
-  const vertical = hl >= 99;
+  const rawHl = d.priced === 'hs620' ? { SL: 0, HL750: .75, HL1370: 1.37, HL2000: 2.0, VL: 99 }[st.lift620 || 'SL'] : (LIFT[st.lift] || LIFT.normal).hl;
+  const vertical = rawHl >= 99;   // vertical lift: straight track, the leaf rises by its own height
+  const hl = vertical ? Math.min(h, HALL_H - h - .4) : Math.min(rawHl, HALL_H - h - .6);
   // outside reveal: galvanised angle frame around the opening (as on the LS reference photos)
   g.add(box(w + .16, .08, .05, M.galv, 0, h + .04, -.02, { shadow: false }));
   [-1, 1].forEach(s => g.add(box(.08, h + .08, .05, M.galv, s * (w / 2 + .04), (h + .08) / 2, -.02, { shadow: false })));
   if (d.kind === 'sectional') {
     const leaf = sectionalLeaf(w, h, d.panel, st, M, d); leaf.position.set(0, 0, zL); leaf.userData.dynamic = true; g.add(leaf);
     const parts = leaf.userData.parts, H = leaf.userData.H;
-    const R = vertical ? 0 : .42, Ht = h + .12 + (vertical ? h : hl);
+    const R = vertical ? 0 : .42, Ht = h + .12 + hl;
     const heavy = d.priced === 'hs620';   // 620NG: self-supporting galvanised frame columns, FU motor at the shaft
     // tracks: continuous C-channel on each side (roller path), wall angle behind the vertical part, hanger angles for the horizontal part
     const t0 = st.panel === 'iso80' ? .08 : .04, zo = t0 / 2 + .035, Rr = Math.max(.05, R - zo), horizLen = h + .6, tx = w / 2 + .055;
@@ -226,7 +227,7 @@ export function buildDoor({ M, st, w, h }) {
     // torsion shaft with spring packs and cable drums above the opening (inside)
     // torsion spring assembly as on a real sectional door: solid shaft on end bearing brackets, centre spring-anchor bracket on the wall,
     // one coil spring each side of it with aluminium stationary / winding cones, cable drums at the ends with lifting cables down to the bottom panel
-    const sy = Ht + .2, sz = zL - .18, arm = -WALL_T - sz;   // shaft axis and bracket reach from the wall
+    const sy = (vertical ? h + .12 : Ht) + .2, sz = zL - .18, arm = -WALL_T - sz;   // shaft axis (vertical lift: low shaft above the opening, as VLU) and bracket reach from the wall
     g.add(cyl(.0127, w + .5, M.galv, 0, sy, sz, 10).rotateZ(Math.PI / 2));
     const bracket = x => { g.add(box(.06, .26, .004, M.galv, x, sy - .03, -WALL_T - .002, { shadow: false })); g.add(box(.06, .004, arm, M.galv, x, sy + .045, -WALL_T - arm / 2)); g.add(box(.004, .09, arm, M.galv, x + .03, sy, -WALL_T - arm / 2, { shadow: false }));
       g.add(cyl(.024, .035, M.galvDark, x, sy, sz, 14).rotateZ(Math.PI / 2)); };   // bearing hub
@@ -236,9 +237,9 @@ export function buildDoor({ M, st, w, h }) {
       g.add(cyl(.046, .04, M.alu, s * .07, sy, sz, 16).rotateZ(Math.PI / 2)); g.add(cyl(.046, .05, M.alu, s * (.06 + Ls + .02), sy, sz, 16).rotateZ(Math.PI / 2)); });   // cones
     [-1, 1].forEach(s => { const dx = s * (w / 2 + .06); g.add(cyl(.062, .085, M.galvDark, dx, sy, sz, 20).rotateZ(Math.PI / 2)); for (let k = -3; k <= 3; k++) g.add(cyl(.064, .004, M.dark, dx + k * .011, sy, sz, 20, { shadow: false }).rotateZ(Math.PI / 2));   // grooved cable drum
       g.add(cyl(.0025, sy - .1, M.galvDark, dx, (sy - .1) / 2 + .1, sz + .02, 6, { shadow: false })); });   // lifting cable down to the bottom bracket
-    if (d.motor || st.operation === 'motor') { const mu = part('motor_unit', w / 2 + .36, Ht + .2, zL - .18, { rotX: -Math.PI / 2 }); if (mu) g.add(mu); else g.add(box(.26, .3, .36, M.galv, w / 2 + .32, Ht + .2, zL - .18)); }
-    else { g.add(cyl(.004, Ht - .6, M.dark, -w / 2 - .02, Ht / 2 + .2, zL - .1, 6, { shadow: false })); }   // pull rope
-    const smax = Ht - parts[0].y0 + R * Math.PI / 2 + .12;
+    if (d.motor || st.operation === 'motor') { const mu = part('motor_unit', w / 2 + .36, sy, zL - .18, { rotX: -Math.PI / 2 }); if (mu) g.add(mu); else g.add(box(.26, .3, .36, M.galv, w / 2 + .32, sy, zL - .18)); }
+    else { g.add(cyl(.004, sy - .8, M.dark, -w / 2 - .02, sy / 2, zL - .1, 6, { shadow: false })); }   // pull rope
+    const smax = vertical ? hl + .12 : Ht - parts[0].y0 + R * Math.PI / 2 + .12;   // vertical lift: the leaf rises by exactly its height (bottom edge 12 cm above the opening), the track ends there
     animate = t => { const s = ease(t) * smax; parts.forEach(({ p, y0 }) => { const d1 = Ht - y0;
       if (vertical || s < d1) { p.position.set(0, y0 + s, 0); p.rotation.x = 0; }
       else if (s < d1 + R * Math.PI / 2) { const a = (s - d1) / R; p.position.set(0, Ht + R * Math.sin(a), -R * (1 - Math.cos(a))); p.rotation.x = -a; }
