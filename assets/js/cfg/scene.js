@@ -84,7 +84,8 @@ export function registerVehicles(gltfScene, M, { rename = {} } = {}) {
     else if (o.material.map) { o.material.envMapIntensity = 1.0; o.material.metalness = .25; o.material.roughness = 1.0; }   // AI-scanned vehicle: keep its PBR textures, tame the metallic map (painted panels, not chrome)
     if (/decal/.test(o.name) || o.material === M.decalDark) { o.material = M.decalDark; o.castShadow = false; o.receiveShadow = false; o.renderOrder = 2; }
   });
-  gltfScene.children.forEach(c => { c.position.set(0, 0, 0); c.rotation.set(0, 0, 0); VEHICLES[rename[c.name] || c.name] = c; if (c.name === 'rigid' && !rename[c.name]) reshapeRigid(c); });
+  gltfScene.children.forEach(c => { c.position.set(0, 0, 0); c.rotation.set(0, 0, 0); VEHICLES[rename[c.name] || c.name] = c; if (c.name === 'rigid' && !rename[c.name]) reshapeRigid(c);
+    if (c.name === 'van' && !rename[c.name]) c.traverse(o => { if (/decal/.test(o.name)) { o.position.z -= 1.35; o.scale.setScalar(.8); } }); });   // van: logo centred on the cargo side wall, not at the rear corner
 }
 /* 7.5 t box truck: the scan is 2.4 m wide, 3.11 m high with a 1.05 m bed. Julian: same body width, height and bed height as the semi,
    only shorter. So (in model units, before the uniform 1.07 scale that gives the 2.63 m width): lift everything above the wheels by .17
