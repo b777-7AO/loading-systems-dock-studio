@@ -732,7 +732,7 @@ export function buildWarehouse({ mats, st, studio = false }) {
     const len = (st.levellerLen || 2500) / 1000 + .06, pw = (st.levellerW || 2000) / 1000 + .08, bw = w + 2.6, bd = len + 1.6, zf = -WALL_T - .12 + .03;
     [-1, 1].forEach(sx => g.add(box((bw - pw) / 2, DOCK_H, bd + .3, M.plinth, sx * (pw / 2 + (bw - pw) / 4), DOCK_H / 2, zf - bd / 2 + .15)));
     g.add(box(pw, DOCK_H, bd - len, M.plinth, 0, DOCK_H / 2, zf - len - (bd - len) / 2));          // behind the pit
-    g.add(box(pw, DOCK_H, .3, M.plinth, 0, DOCK_H / 2, zf + .15));                                   // in front of the pit (dock face)
+    const fh = DOCK_H - stepDown; g.add(box(pw, fh, .3, M.plinth, 0, fh / 2, zf + .15));             // in front of the pit (dock face); stepped dock: notch 50 cm deep for the T door
     g.add(box(pw, DOCK_H - .78, len, M.plinth, 0, (DOCK_H - .78) / 2, zf - len / 2));                // under the pit
   } else {
   const front = wall(W, H + .4, WALL_T, openings, facMat); front.position.set(x0, 0, 0); g.add(front);
