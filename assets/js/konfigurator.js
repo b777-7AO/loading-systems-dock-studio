@@ -11,7 +11,7 @@ import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import * as C from './cfg/catalog.js?v=33';
 import { createMaterials, TEX } from './cfg/materials.js?v=31';
-import { buildWarehouse, buildStudio, dispose, DOCK_H, ease, registerParts, registerVehicles, mergeStatic, QUALITY, dockEnd } from './cfg/scene.js?v=80';
+import { buildWarehouse, buildStudio, dispose, DOCK_H, ease, registerParts, registerVehicles, mergeStatic, QUALITY, dockEnd } from './cfg/scene.js?v=83';
 
 const $ = id => document.getElementById(id);
 const q = new URLSearchParams(location.search);

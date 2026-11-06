@@ -280,7 +280,7 @@ export function buildLeveller({ M, st, w, bedH, truckRearZ = null }) {
     [-1, 1].forEach(sx => zone.add(box(.05, .006, zd, M.galvDark, sx * (zw / 2 + .035), .003, -zd / 2, { shadow: false })));   // edge angles along the hall floor
   }
   const gap = .02;   // pit is only 1 cm bigger than the plate on each side: the leveller is the whole area, not a plate in a wide frame
-  pit.add(box(pw + gap, .02, len + gap, M.levellerFrame, 0, -.74, -(len + gap) / 2, { shadow: false }));   // pit floor
+  pit.add(box(pw + gap, .02, len + gap, M.pitBottom, 0, -.74, -(len + gap) / 2, { shadow: false }));   // pit floor (matte: visible through the open front of the combi dock)
   [-1, 1].forEach(s => pit.add(box(.04, .74, len + gap, M.plinth, s * (pw / 2 + gap / 2 + .02), -.37, -(len + gap) / 2)));
   pit.add(box(pw + gap + .08, .74, .04, M.plinth, 0, -.37, -(len + gap) - .02));
   // pit frame angle flush in the floor
@@ -299,6 +299,11 @@ export function buildLeveller({ M, st, w, bedH, truckRearZ = null }) {
   const lipPivot = new THREE.Group(); lipPivot.position.set(0, 0, len); lipPivot.userData.dynamic = true; hinge.add(lipPivot);
   let lip;
   if (L.lip === 'swing') { lip = uvMetres(box(pw - .1, .05, lipLen, M.levellerPlate, 0, 0, lipLen / 2)); lipPivot.add(lip); lipPivot.add(box(pw - .1, .004, .08, M.hazard, 0, .028, lipLen - .04, { shadow: false })); lipPivot.rotation.x = Math.PI / 2 - .08; }
+  else if (L.combi) {   // 253NG: split lip, the outer parts and a narrower centre segment extend together for a lorry; for a van only the centre segment comes out
+    const body = Math.min(lipLen + 1.2, len - .1), cw = 1.0, sw = (pw - .1 - cw) / 2 - .01;
+    lip = new THREE.Group(); lipPivot.add(lip);
+    const mk = (wd, x) => { const b = uvMetres(box(wd, .02, body, M.levellerPlate, x, .019, 0)); b.geometry.translate(0, 0, -body / 2); b.add(box(wd, .003, .08, M.hazard, 0, .0115, -.04, { shadow: false })); return b; };
+    lip.userData.centre = mk(cw, 0); lip.userData.sides = [mk(sw, -(cw / 2 + .01 + sw / 2)), mk(sw, cw / 2 + .01 + sw / 2)]; lip.add(lip.userData.centre, ...lip.userData.sides); }
   else { const body = Math.min(lipLen + 1.2, len - .1); lip = uvMetres(box(pw - .1, .02, body, M.levellerPlate, 0, .019, 0)); lip.geometry.translate(0, 0, -body / 2); lipPivot.add(lip); lip.position.z = 0; if (!stepped) lip.add(box(pw - .1, .003, .08, M.hazard, 0, .0115, -.04, { shadow: false })); }   // telescopic lip: thin 20 mm steel plate flush with the platform top, one rigid piece sliding out of a slot in the front edge; its body runs 1.2 m back inside the platform
   // galvanised toe guards (side skirts)
   [-1, 1].forEach(s => { const sk = box(.02, .7, len, M.galvDark, s * (pw / 2 - .01), -.36, len / 2, { shadow: false }); hinge.add(sk); });
@@ -312,6 +317,7 @@ export function buildLeveller({ M, st, w, bedH, truckRearZ = null }) {
     const dh = (docked ? target : level) - level; /* no vehicle to rest on: the platform comes back to floor level, never below */ const downA = Math.atan2(dh, L.lip === 'swing' ? len : len + ext);   // telescopic: the lip tip (plate + extension) rests on the vehicle floor
     hinge.rotation.x = -(upA * ease(r)) + (upA - downA) * ease(lo);
     if (L.lip === 'swing') lipPivot.rotation.x = (Math.PI / 2 - .08) * (1 - ease(o)) + (-hinge.rotation.x) * ease(lo);
+    else if (L.combi) { const z = ext * ease(o); lip.userData.centre.position.z = z; lip.userData.sides.forEach(p => { p.position.z = van ? 0 : z; }); lipPivot.rotation.x = 0; }   // van: only the narrow centre segment extends
     else { lip.position.z = ext * ease(o); lipPivot.rotation.x = 0; }   // no articulation: the lip extends and retracts in line with the platform
   }
   return { group: g, animate };
@@ -752,9 +758,9 @@ export function buildWarehouse({ mats, st, studio = false }) {
   const w = st.w / 1000, h = st.h / 1000; const bays = studio ? 1 : st.bays; const lite = QUALITY.mobile;
   const pitch = Math.max(PITCH, w + 1.9); const W = studio ? w + 3.2 : bays * pitch + 8; const H = DOCK_H + HALL_H; const D = studio ? 6 : HALL_D;
   const x0 = -W / 2; const bayX = i => studio ? 0 : x0 + 4 + pitch * i + pitch / 2;
-  const stepDown = st.leveller === 'stepped' ? .5 : 0, stepW = (st.levellerW || 2000) / 1000 + .1;   // stepped dock: slit in the floor in front of the leveller (leveller width, 50 cm deep); the straight, taller door runs down into it and disappears into the floor at the sides
+  const stepDown = st.leveller === 'stepped' ? .5 : 0, stepW = (st.levellerW || 2000) / 1000 + .1, combiW = (st.levellerW || 2000) / 1000 + .04;   // stepped dock: slit in the floor in front of the leveller (leveller width, 50 cm deep); the straight, taller door runs down into it and disappears into the floor at the sides
   // stepped dock: the wall opening is a T (lowered only over the leveller-wide slit); beside the slit the wall stays solid concrete and the door's lower edges run into a thin slot in it
-  const openings = []; for (let i = 0; i < bays; i++) openings.push({ x: bayX(i) - x0 - w / 2, y: DOCK_H, w, h, notch: stepDown ? { x: (w - stepW) / 2, w: stepW, d: .52 } : null, faceNotch: stepDown ? { x: (w - stepW) / 2, w: stepW, d: .54 } : null });
+  const openings = []; for (let i = 0; i < bays; i++) openings.push({ x: bayX(i) - x0 - w / 2, y: DOCK_H, w, h, notch: stepDown ? { x: (w - stepW) / 2, w: stepW, d: .52 } : st.leveller === 'combi' ? { x: (w - combiW) / 2, w: combiW, d: .76 } : null, faceNotch: stepDown ? { x: (w - stepW) / 2, w: stepW, d: .54 } : null });   // combi: wall open down to the pit floor over the plate width
   // mandoor (pedestrian door) next to the first bay
   if (st.mandoor && st.mandoor !== 'none' && !studio) openings.push({ x: bayX(0) - x0 - w / 2 - 1.9, y: DOCK_H, w: (st.mandoorW || 1000) / 1000, h: (st.mandoorH || 2125) / 1000 });
   // facade: dock wall (concrete) up to DOCK_H, sandwich panels above
@@ -780,7 +786,7 @@ export function buildWarehouse({ mats, st, studio = false }) {
     else if (st.leveller === 'combi') {   // combi dock: no wall in front of the leveller, the pit is open to the yard down to the pit floor so the platform can sink below dock level
       const pw = (st.levellerW || 2000) / 1000 + .04;
       [-1, 1].forEach(sx => g.add(box((o.w - pw) / 2, DOCK_H + .02, .06, M.plinth, ox + o.w / 2 + sx * (pw / 2 + (o.w - pw) / 4), (DOCK_H + .02) / 2, .03)));
-      g.add(box(pw, DOCK_H - .76, .06, M.plinth, ox + o.w / 2, (DOCK_H - .76) / 2, .03)); }
+      g.add(box(pw, DOCK_H - .73, .06, M.plinth, ox + o.w / 2, (DOCK_H - .73) / 2, .03)); }   // plinth top just above the wall's notch sill so no white line shows
     else if (st.leveller !== 'none') {   // leveller runs to the dock edge: the face is lowered over the plate width so the platform front shows at the edge
       const pw = (st.levellerW || 2000) / 1000 + .08, sx = (o.w - pw) / 2;
       g.add(box(sx, DOCK_H + .02, .06, M.plinth, ox + sx / 2, (DOCK_H + .02) / 2, .03)); g.add(box(sx, DOCK_H + .02, .06, M.plinth, ox + o.w - sx / 2, (DOCK_H + .02) / 2, .03));
@@ -843,7 +849,7 @@ export function buildWarehouse({ mats, st, studio = false }) {
     if (stepDown && !studio) {   // the notch through the wall is concrete, not facade panel: sill and side cheeks
       [-1, 1].forEach(sx => bay.add(box(.02, .52, WALL_T + .02, M.plinth, sx * (stepW / 2 + .01), DOCK_H - .26, -WALL_T / 2, { shadow: false })));   // cheeks of the 50 cm step
     }
-    if (st.leveller !== 'stepped') bay.add(box(w + .7, .14, .02, M.yellowStripe, 0, DOCK_H - .2, .07, { shadow: false }));   // yellow dock-edge marking (not on a stepped dock: the notch cuts through it)
+    if (st.leveller !== 'stepped' && st.leveller !== 'combi') bay.add(box(w + .7, .14, .02, M.yellowStripe, 0, DOCK_H - .2, .07, { shadow: false }));   // yellow dock-edge marking (not on a stepped or combi dock: the open pit cuts through it)
     const truckKind = st.truck; const bedH = TRUCKS[truckKind] && truckKind !== 'none' ? TRUCKS[truckKind].bedH : null;
     const truckRearZ = bedH != null ? dockEnd(TRUCKS[truckKind]) + (TRUCKS[truckKind].doorFaceZ || 0) : null;
     const lev = buildLeveller({ M, st, w, bedH, truckRearZ }); bay.add(lev.group); rigs.levellers.push(lev);
