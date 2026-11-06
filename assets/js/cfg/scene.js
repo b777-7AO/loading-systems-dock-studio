@@ -1,7 +1,7 @@
 /* Loading Systems · Dock Studio scene: warehouse with N loading bays, doors, dock levellers, shelters, bumpers, restraints, lights, trucks.
    Units metres. X along the facade, Y up, +Z = yard (outside). Yard level y = 0, warehouse floor y = DOCK_H. Facade front face at z = 0. */
 import * as THREE from 'three';
-import { DOORS, LEVELLERS, SHELTERS, BUMPERS, TRUCKS, WINDOWS, FULLVISION, LIFT, LIFT_620 } from './catalog.js?v=33';
+import { DOORS, LEVELLERS, SHELTERS, BUMPERS, TRUCKS, WINDOWS, FULLVISION, LIFT, LIFT_620 } from './catalog.js?v=34';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 
@@ -681,14 +681,26 @@ export function buildTruck({ M, kind, trailerOnly = false }) {
       const inside = new THREE.Group(); inside.position.set(0, yB, zF); g.add(inside);
       inside.add(box(inW, .03, depth, ply, 0, -.015, depth / 2));                                         // plywood floor
       for (let z = 1.2; z < depth - .3; z += 1.22) inside.add(box(inW - .04, .002, .012, M.plastic, 0, .002, z, { shadow: false }));   // sheet joints
-      [-1, 1].forEach(sx => inside.add(box(.02, inH, depth, M.trailerRoof, sx * (inW / 2 - .01), inH / 2, depth / 2, { shadow: false })));
-      inside.add(box(inW, .02, depth, M.trailerRoof, 0, inH - .01, depth / 2, { shadow: false }));       // ceiling
+      const lining = T.vanDoors ? M.vanInner : M.trailerRoof;
+      [-1, 1].forEach(sx => inside.add(box(.02, inH, depth, lining, sx * (inW / 2 - .01), inH / 2, depth / 2, { shadow: false })));
+      if (T.vanDoors) [-1, 1].forEach(sx => inside.add(rbox(.26, .34, 1.1, .05, M.black, sx * (inW / 2 - .13), .17, Math.min(depth - .7, 1.9))));   // wheel arches in the load compartment
+      const ch = T.vanDoors ? .34 : .02; inside.add(box(inW, ch, depth, lining, 0, inH - ch / 2, depth / 2, { shadow: false }));       // ceiling (van: thick headliner hides the scan's curved inner roof)
       inside.add(box(inW, inH, .02, M.plastic, 0, inH / 2, depth - .01, { shadow: false }));             // end wall of the visible interior
       const lamp = new THREE.PointLight(0xfff4e0, 0, 9, 1.4); lamp.position.set(0, inH - .15, 1.6); inside.add(lamp); inside.userData.lamp = lamp;
       const lamp2 = new THREE.PointLight(0xfff4e0, 0, 9, 1.4); lamp2.position.set(0, inH - .15, Math.min(depth - 1, 5.5)); inside.add(lamp2);
       const hinges = [-1, 1].map(sx => { const hg = new THREE.Group(); hg.position.set(sx * (xo + .08), yB, zF - .03); g.add(hg);
-        const leaf = box(xo + .06, inH - .04, .04, M.trailerBox, -sx * (xo + .06) / 2, inH / 2, 0); hg.add(leaf);
-        [.3, inH - .3].forEach(y => hg.add(box(.05, .22, .06, M.galvDark, -sx * (xo + .06) / 2, y, .04)));   // lock bars
+        const lw = xo + .06, lx = -sx * lw / 2;
+        if (T.vanDoors) {   // van: smooth white painted leaf with a window, black rubber edge seal, two hinges on the outer edge and a handle at the centre split
+          hg.add(rbox(lw - .02, inH - .06, .045, .018, M.vanPaint, lx, inH / 2, 0));
+          hg.add(box(lw, inH - .02, .02, M.rubberSeal || M.black, lx, inH / 2, .012, { shadow: false }));                 // seal / inner edge
+          hg.add(rbox(lw * .74, inH * .30, .012, .03, M.glassDark, lx, inH * .70, -.027, { shadow: false }));           // rear window
+          hg.add(box(lw * .78, inH * .34, .006, M.black, lx, inH * .70, -.022, { shadow: false }));                     // window surround
+          [inH * .22, inH * .8].forEach(y => hg.add(box(.03, .12, .05, M.galvDark, sx * .01, y, -.03)));                 // hinges on the outer edge
+          hg.add(box(.03, .14, .03, M.galvDark, -sx * (lw - .08), inH * .46, -.035));                                      // handle
+        } else {
+          hg.add(box(lw, inH - .04, .04, M.trailerBox, lx, inH / 2, 0));
+          [.3, inH - .3].forEach(y => hg.add(box(.05, .22, .06, M.galvDark, lx, y, .04)));   // lock bars
+        }
         return { hg, sx }; });
       doors = (t, maxA = Math.PI * 1.5) => { const a = maxA * ease(t); hinges.forEach(({ hg, sx }) => { hg.rotation.y = sx > 0 ? -a : a; }); lamp.intensity = lamp2.intensity = t > .5 ? 2.5 : 0; };
     }
