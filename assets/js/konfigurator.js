@@ -9,9 +9,9 @@ import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import * as C from './cfg/catalog.js?v=24';
-import { createMaterials, TEX } from './cfg/materials.js?v=24';
-import { buildWarehouse, buildStudio, dispose, DOCK_H, ease, registerParts, registerVehicles, mergeStatic, QUALITY } from './cfg/scene.js?v=24';
+import * as C from './cfg/catalog.js?v=25';
+import { createMaterials, TEX } from './cfg/materials.js?v=25';
+import { buildWarehouse, buildStudio, dispose, DOCK_H, ease, registerParts, registerVehicles, mergeStatic, QUALITY } from './cfg/scene.js?v=25';
 
 const $ = id => document.getElementById(id);
 const q = new URLSearchParams(location.search);

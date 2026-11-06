@@ -315,27 +315,40 @@ export function buildBumpers({ M, st, w }) {
   return g;
 }
 export function buildRestraint({ M, st, w }) {
-  const g = new THREE.Group(); let animate = () => {};
-  if (st.restraint === 'manual') {
-    // 503NG PowerLock: galvanised ground profile with a wheel chock on a sliding carriage, operated from a standing-height post
-    const rail = box(.1, .04, 2.6, M.galv, w * .32, .02, 2.4); g.add(rail);
-    g.add(box(.14, .14, .4, M.galv, w * .32, .07, 1.2)); g.add(cyl(.02, 1.0, M.galv, w * .32 - .1, .8, 1.1, 8)); g.add(box(.18, .07, .06, M.dark, w * .32 - .1, 1.32, 1.1));
-    const body = new THREE.Group(); body.position.set(w * .32, .0, 1.6); body.userData.dynamic = true; g.add(body);
-    body.add(rbox(.5, .3, .6, .03, M.yellow, 0, .17, 0)); body.add(box(.04, .04, .04, M.green, .2, .3, .31, { shadow: false }));
-    animate = t => { body.position.z = 1.6 + 1.3 * ease(t); };
-    g.userData.led = body.children[1];
-  } else if (st.restraint === 'auto') {
-    // 505NG: long galvanised tube on the ground with a rounded red-banded cap, the blocking arm travels along it and swings up behind the wheel
-    const x = w * .34; const L = 6.2;
-    const tube = cyl(.11, L, M.galv, x, .22, L / 2 + 1.3, 18); tube.rotation.x = Math.PI / 2; g.add(tube);
-    g.add(sph(.11, M.galv, x, .22, L + 1.3, 18)); const band = cyl(.113, .1, M.red, x, .22, L + 1.3 - .3, 18); band.rotation.x = Math.PI / 2; g.add(band);
-    g.add(box(.4, .04, L, M.galv, x, .02, L / 2 + 1.3, { shadow: false }));   // base plate
-    g.add(box(.36, .3, .5, M.galv, x, .15, 1.45)); g.add(box(.32, .1, .4, M.sign, x, .33, 1.45, { shadow: false }));
-    const carriage = new THREE.Group(); carriage.position.set(x, .22, 4.0); carriage.userData.dynamic = true; g.add(carriage);
-    carriage.add(box(.34, .3, .5, M.galvDark, 0, 0, 0));
-    const arm = new THREE.Group(); carriage.add(arm); arm.add(box(.08, .9, .08, M.yellow, -.22, .45, 0)); arm.add(box(.08, .08, .5, M.yellow, -.22, .9, .25)); arm.rotation.x = Math.PI / 2;
-    animate = t => { carriage.position.z = 4.0 + 2.4 * seg(t, 0, .6); arm.rotation.x = Math.PI / 2 * (1 - ease(seg(t, .6, 1))); };
+  // Vehicle restraints sit BESIDE the truck lane (right-hand side seen from the yard), where the right wheel guide would be:
+  // a long galvanised ground rail with the domed red-banded cap at the yard end; the blocking arm rides along the rail to the
+  // rearmost wheel and swings under the trailer in front of it (505NG automatic, 503NG PowerLock manual).
+  const g = new THREE.Group(); g.name = 'restraint'; let animate = () => {};
+  if (st.restraint === 'none' || !st.restraint) return { group: g, animate };
+  const T = TRUCKS[st.truck] || TRUCKS.truck; const blockZ = (T && T.blockZ) || 3.73;   // where the arm blocks: the gap in front of the rearmost wheel, measured from the vehicle rear (see vehicle wheel positions)
+  const X = 1.62;                                   // rail centre line, just outside the outer wheel face (truck width 2.55 m)
+  const zTarget = .34 + blockZ + .2;                // carriage position so that the arm (at -.2) sits at blockZ of the docked truck (truck rear at z = .34)
+  const auto = st.restraint === 'auto';
+  const z0 = .9, L = auto ? 4.6 : 3.6, zEnd = z0 + L;
+  // ground rail: galvanised box profile with chamfered ends on a flat base plate
+  g.add(box(.26, .22, L, M.galv, X, .11, z0 + L / 2));
+  g.add(box(.44, .03, L + .3, M.galv, X, .015, z0 + L / 2, { shadow: false }));
+  [z0, zEnd].forEach((z, k) => { const c = box(.26, .22, .3, M.galv, X, .11, z + (k ? .15 : -.15)); c.rotation.x = (k ? 1 : -1) * .5; g.add(c); });
+  if (auto) {
+    // domed cap with red band at the yard end
+    const cap = new THREE.Mesh(new THREE.CylinderGeometry(.25, .27, .34, 24), M.galv); cap.position.set(X, .17, zEnd + .32); cap.castShadow = true; g.add(cap);
+    g.add(sph(.25, M.galv, X, .34, zEnd + .32, 24)); const band = cyl(.272, .07, M.red, X, .3, zEnd + .32, 24); g.add(band);
+  } else {
+    // 503NG PowerLock: operator post at standing height with the control head (red/green light) at the yard end
+    g.add(box(.22, .36, .4, M.galvDark, X, .18, zEnd + .2)); g.add(cyl(.025, 1.15, M.galv, X, .75, zEnd + .2, 10));
+    g.add(box(.2, .1, .14, M.dark, X, 1.36, zEnd + .2)); const led = box(.05, .05, .02, M.green, X, 1.36, zEnd + .28, { shadow: false }); g.add(led); g.userData.led = led;
+    g.add(box(.05, .05, .02, M.red, X, 1.36, zEnd + .12, { shadow: false }));
   }
+  // carriage with the swing arm: parked at the yard end, travels to the rear wheel, then the arm swings across under the trailer
+  const zPark = zEnd - .4;
+  const carriage = new THREE.Group(); carriage.name = 'restraint_carriage'; carriage.position.set(X, .22, zPark); carriage.userData.dynamic = true; g.add(carriage);
+  carriage.add(box(.34, .26, .56, M.galvDark, 0, .02, 0));
+  if (auto) carriage.add(box(.3, .09, .36, M.sign, 0, .2, 0, { shadow: false }));   // LS name plate on the housing
+  const arm = new THREE.Group(); arm.name = 'restraint_arm'; arm.position.set(-.17, .08, -.2); carriage.add(arm);
+  const armL = 1.25; const tube = cyl(.05, armL, M.galv, 0, 0, armL / 2, 14); tube.rotation.x = Math.PI / 2; arm.add(tube);
+  const collar = cyl(.065, .16, M.galv, 0, 0, .1, 14); collar.rotation.x = Math.PI / 2; arm.add(collar); arm.add(rbox(.16, .14, .12, .02, M.bumperRubber, 0, 0, armL - .04));
+  const travel = zPark - zTarget;
+  animate = t => { carriage.position.z = zPark - travel * seg(t, 0, .6); arm.rotation.y = -Math.PI / 2 * ease(seg(t, .6, 1)); };
   return { group: g, animate };
 }
 export function buildDockLight({ M, st, w, h }) {
@@ -469,7 +482,8 @@ export function buildWarehouse({ mats, st, studio = false }) {
     if (st.trafficLight) { const tl = buildTrafficLight({ M, w, h }); bay.add(tl.group); rigs.traffic.push(tl); }
     if (st.numbers && st.numberStyle === 'plate') bay.add(numberPlate({ M, n: i + 1, w, h }));
     if (st.bollards) [-1, 1].forEach(s => { const b = part('bollard', s * (w / 2 + .85), 0, .55); if (b) bay.add(b); else bay.add(cyl(.08, 1.1, M.yellow, s * (w / 2 + .85), .55, .55, 16)); });
-    if (st.wheelGuides) [-1, 1].forEach(s => { const x = s * 1.55; const t = cyl(.06, 4.6, M.yellow, x, .18, 4.6, 12); t.rotation.x = Math.PI / 2; bay.add(t); [2.5, 6.6].forEach(z => bay.add(cyl(.06, .3, M.yellow, x, .1, z, 12))); });
+    if (st.wheelGuides) [-1, 1].forEach(s => { if (s > 0 && st.restraint && st.restraint !== 'none') return;   // the restraint rail takes the right-hand side
+      const x = s * 1.55; const t = cyl(.06, 4.6, M.yellow, x, .18, 4.6, 12); t.rotation.x = Math.PI / 2; bay.add(t); [2.5, 6.6].forEach(z => bay.add(cyl(.06, .3, M.yellow, x, .1, z, 12))); });
     // dock control box inside next to the door
     const cb = part('control_box', w / 2 + .7, DOCK_H + 1.4, -WALL_T - .07, { rotY: Math.PI }); if (cb) bay.add(cb); else bay.add(box(.3, .42, .12, M.white, w / 2 + .7, DOCK_H + 1.4, -WALL_T - .07));
     // truck
