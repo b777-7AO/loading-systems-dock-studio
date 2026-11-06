@@ -1,7 +1,7 @@
 /* Loading Systems · Dock Studio scene: warehouse with N loading bays, doors, dock levellers, shelters, bumpers, restraints, lights, trucks.
    Units metres. X along the facade, Y up, +Z = yard (outside). Yard level y = 0, warehouse floor y = DOCK_H. Facade front face at z = 0. */
 import * as THREE from 'three';
-import { DOORS, LEVELLERS, SHELTERS, BUMPERS, TRUCKS, WINDOWS, FULLVISION, LIFT, LIFT_620 } from './catalog.js?v=29';
+import { DOORS, LEVELLERS, SHELTERS, BUMPERS, TRUCKS, WINDOWS, FULLVISION, LIFT, LIFT_620 } from './catalog.js?v=30';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 
@@ -82,7 +82,15 @@ export function registerVehicles(gltfScene, M, { rename = {} } = {}) {
     else if (o.material.map) { o.material.envMapIntensity = 1.0; o.material.metalness = .25; o.material.roughness = 1.0; }   // AI-scanned vehicle: keep its PBR textures, tame the metallic map (painted panels, not chrome)
     if (/decal/.test(o.name) || o.material === M.decalDark) { o.material = M.decalDark; o.castShadow = false; o.receiveShadow = false; o.renderOrder = 2; }
   });
-  gltfScene.children.forEach(c => { c.position.set(0, 0, 0); c.rotation.set(0, 0, 0); VEHICLES[rename[c.name] || c.name] = c; });
+  gltfScene.children.forEach(c => { c.position.set(0, 0, 0); c.rotation.set(0, 0, 0); VEHICLES[rename[c.name] || c.name] = c; if (c.name === 'rigid' && !rename[c.name]) reshapeRigid(c); });
+}
+/* 7.5 t box truck: the scan is 2.4 m wide, 3.11 m high with a 1.05 m bed. Julian: same body width, height and bed height as the semi,
+   only shorter. So (in model units, before the uniform 1.07 scale that gives the 2.63 m width): lift everything above the wheels by .17
+   (bed 1.30 m) and stretch the box (z < 7, above the chassis) so its roof reaches 3.92 m; the cab (z > 7) keeps its height. */
+function reshapeRigid(root) {
+  root.traverse(o => { if (!o.isMesh || o.geometry.userData.reshaped) return; const pa = o.geometry.attributes.position;
+    for (let i = 0; i < pa.count; i++) { const y0 = pa.getY(i), z = pa.getZ(i); let y = y0 + (y0 > .92 ? .17 : 0); if (z < 7.0 && y0 > 1.4) y = 1.57 + (y0 - 1.4) * 1.2246; pa.setY(i, y); }
+    pa.needsUpdate = true; o.geometry.computeBoundingBox(); o.geometry.computeBoundingSphere(); o.geometry.userData.reshaped = true; });
 }
 /* finger-safe sandwich panel: tongue on top, groove below, extruded along X. Front face at +z (z = t), back face at z = 0, bottom at y = 0.
    ExtrudeGeometry maps the big faces to U = height (m), V = width (m), which the micro-profile normal map relies on */
@@ -633,7 +641,7 @@ export function buildTruck({ M, kind, trailerOnly = false }) {
   const tpl = (trailerOnly && VEHICLES[T.model + '_proc']) || VEHICLES[T.model] || VEHICLES[T.model + '_proc']; const wheels = [];
   let doors = () => {}; let planes = null;
   if (tpl) {
-    const v = tpl.clone(); if (T.scale) v.scale.setScalar(T.scale); g.add(v);   // 7.5 t box truck: a size smaller than the semi in every dimension
+    const v = tpl.clone(); if (T.scale) v.scale.setScalar(T.scale); g.add(v);
     v.traverse(o => { if (o.name.startsWith('wheel')) wheels.push(o); if (trailerOnly && o.name === 'tractor') o.visible = false; });
     if (!trailerOnly && T.doorW) {
       // Rear doors: the scanned model has them painted shut. Clip that slab of the shell away (world-space planes, intersection = the door
