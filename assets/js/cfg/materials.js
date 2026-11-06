@@ -128,7 +128,7 @@ export function createMaterials(renderer, manager, { mobile = false } = {}) {
     shelter403SideR: std({ map: (() => { const t = tx('ls403_side_v2.jpg', { srgb: true, wrap: false }).clone(); t.wrapS = THREE.RepeatWrapping; t.repeat.x = -1; t.offset.x = 1; t.needsUpdate = true; return t; })(), roughness: .72, color: 0xf0f0f0 }),
     logoWhite: std({ map: tx('../img/ls_logo_white.png', { srgb: true, wrap: false }), transparent: true, roughness: .6, polygonOffset: true, polygonOffsetFactor: -2, depthWrite: false }),
     cushion: std({ ...pbr('hf_pvcblack', .5), color: 0x353739, roughness: .8, normalScale: new THREE.Vector2(.6, .6) }),
-    levellerPlate: std({ map: tx('ls_treadplate_d.jpg', { srgb: true, tile: .128, mirror: false }), normalMap: tx('ls_treadplate_n.jpg', { tile: .128, mirror: false }), color: 0xffffff, metalness: .1, roughness: .9, normalScale: new THREE.Vector2(1.0, 1.0) }),   // black tread plate (Tränenblech): raised diamond bumps 30 x 9 mm, pitch 32 mm; UVs in metres, texture tile 0.128 m
+    levellerPlate: std({ map: tx('ls_treadplate_d.jpg', { srgb: true, tile: .128, mirror: false }), normalMap: tx('ls_treadplate_n.jpg', { tile: .128, mirror: false }), color: 0xffffff, metalness: .05, roughness: .95, envMapIntensity: .2, normalScale: new THREE.Vector2(1.0, 1.0) }),   // black tread plate (Tränenblech): raised diamond bumps 30 x 9 mm, pitch 32 mm; UVs in metres, texture tile 0.128 m
     levellerFrame: std({ color: 0x2f3236, metalness: .65, roughness: .5 }),
     bumperRubber: std({ ...pbr('cc_rubber', .4), color: 0x9a9a9a, roughness: .92, normalScale: new THREE.Vector2(.8, .8) }),
     // vehicles (glTF material names are remapped onto these)
