@@ -130,6 +130,7 @@ export function createMaterials(renderer, manager, { mobile = false } = {}) {
     cushion: std({ ...pbr('hf_pvcblack', .5), color: 0x353739, roughness: .8, normalScale: new THREE.Vector2(.6, .6) }),
     levellerPlate: std({ map: tx('ls_treadplate_d.jpg', { srgb: true, tile: .128, mirror: false }), normalMap: tx('ls_treadplate_n.jpg', { tile: .128, mirror: false }), color: 0xffffff, metalness: .05, roughness: .95, envMapIntensity: .2, normalScale: new THREE.Vector2(1.0, 1.0) }),   // black tread plate (Tränenblech): raised diamond bumps 30 x 9 mm, pitch 32 mm; UVs in metres, texture tile 0.128 m
     levellerFrame: std({ color: 0x2f3236, metalness: .65, roughness: .5 }),
+    pitBottom: std({ color: 0x0e0f10, metalness: 0, roughness: 1, envMapIntensity: 0 }),   // open slit of the stepped dock: matte dark concrete far below, no reflections
     bumperRubber: std({ ...pbr('cc_rubber', .4), color: 0x9a9a9a, roughness: .92, normalScale: new THREE.Vector2(.8, .8) }),
     // vehicles (glTF material names are remapped onto these)
     truckPaint: phys({ color: 0xc8102e, roughness: .3, metalness: .2, clearcoat: .8, clearcoatRoughness: .18, roughnessMap: paintR }),
