@@ -228,12 +228,12 @@ export function buildLeveller({ M, st, w, bedH, truckRearZ = null }) {
   const lipPivot = new THREE.Group(); lipPivot.position.set(0, 0, len); lipPivot.userData.dynamic = true; hinge.add(lipPivot);
   let lip;
   if (L.lip === 'swing') { lip = box(pw - .1, .05, lipLen, M.levellerPlate, 0, 0, lipLen / 2); lipPivot.add(lip); lipPivot.add(box(pw - .1, .004, .08, M.hazard, 0, .028, lipLen - .04, { shadow: false })); lipPivot.rotation.x = Math.PI / 2 - .08; }
-  else { lip = box(pw - .1, .045, lipLen, M.levellerPlate, 0, .0035, -lipLen / 2); lipPivot.add(lip); lip.position.z = 0; lip.add(box(pw - .1, .004, .08, M.hazard, 0, .0245, -.04, { shadow: false })); }   // telescopic lip: one rigid piece in the plane of the plate, stored inside it, top 4 mm below the plate surface
+  else { const body = lipLen + 1.2; lip = box(pw - .1, .045, body, M.levellerPlate, 0, .0035, -body / 2); lipPivot.add(lip); lip.position.z = 0; lip.add(box(pw - .1, .004, .08, M.hazard, 0, .0245, -.04, { shadow: false })); }   // telescopic lip: one rigid piece in the plane of the plate; its body runs 1.2 m further back inside the platform so it never looks detached
   // galvanised toe guards (side skirts)
   [-1, 1].forEach(s => { const sk = box(.02, .7, len, M.galvDark, s * (pw / 2 - .01), -.36, len / 2, { shadow: false }); hinge.add(sk); });
   mergeStatic(hinge); g.add(pit);
   const level = DOCK_H; const target = bedH == null ? DOCK_H : bedH + .02;
-  const ext = truckRearZ == null ? lipLen * .5 : Math.min(lipLen - .05, truckRearZ + .15 - plateEdgeZ);   // lip reach from the plate edge: 15 cm into the vehicle (capped by the lip length)
+  const ext = truckRearZ == null ? lipLen * .5 : Math.min(lipLen - .05, truckRearZ + .08 - plateEdgeZ);   // lip reach from the plate edge: 8 cm into the vehicle (capped by the lip length)
   function animate(t) {
     const r = seg(t, 0, .45), o = seg(t, .45, .75), lo = seg(t, .75, 1);
     const upA = .16;
@@ -407,18 +407,21 @@ export function buildTruck({ M, kind, trailerOnly = false }) {
       const zF = T.doorFaceZ, xo = T.doorW, yB = T.bedH + .02, yT = T.doorTop;
       planes = [new THREE.Plane(new THREE.Vector3(0, 0, 1), 0), new THREE.Plane(new THREE.Vector3(0, -1, 0), 0), new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), new THREE.Plane(new THREE.Vector3(1, 0, 0), 0), new THREE.Plane(new THREE.Vector3(-1, 0, 0), 0)];
       v.traverse(o => { if (o.isMesh && o.material && o.material.map && !/decal/.test(o.name)) { o.material = o.material.clone(); o.material.clippingPlanes = planes; o.material.clipIntersection = true; o.material.side = THREE.DoubleSide; } });
-      const depth = Math.min(4, T.len * .3), inW = 2 * xo - .02, inH = yT - yB;
+      const depth = T.boxLen || Math.min(4, T.len * .3), inW = 2 * xo - .02, inH = yT - yB;
+      const ply = new THREE.MeshStandardMaterial({ color: 0x4a4c4e, roughness: .88, metalness: 0 });   // dark grey plywood floor
       const inside = new THREE.Group(); inside.position.set(0, yB, zF); g.add(inside);
-      inside.add(box(inW, .03, depth, M.pallet, 0, -.015, depth / 2));                                   // plank floor
+      inside.add(box(inW, .03, depth, ply, 0, -.015, depth / 2));                                         // plywood floor
+      for (let z = 1.2; z < depth - .3; z += 1.22) inside.add(box(inW - .04, .002, .012, M.plastic, 0, .002, z, { shadow: false }));   // sheet joints
       [-1, 1].forEach(sx => inside.add(box(.02, inH, depth, M.trailerRoof, sx * (inW / 2 - .01), inH / 2, depth / 2, { shadow: false })));
       inside.add(box(inW, .02, depth, M.trailerRoof, 0, inH - .01, depth / 2, { shadow: false }));       // ceiling
       inside.add(box(inW, inH, .02, M.plastic, 0, inH / 2, depth - .01, { shadow: false }));             // end wall of the visible interior
-      const lamp = new THREE.PointLight(0xfff4e0, 0, 6, 1.6); lamp.position.set(0, inH - .15, 1.2); inside.add(lamp); inside.userData.lamp = lamp;
+      const lamp = new THREE.PointLight(0xfff4e0, 0, 9, 1.4); lamp.position.set(0, inH - .15, 1.6); inside.add(lamp); inside.userData.lamp = lamp;
+      const lamp2 = new THREE.PointLight(0xfff4e0, 0, 9, 1.4); lamp2.position.set(0, inH - .15, Math.min(depth - 1, 5.5)); inside.add(lamp2);
       const hinges = [-1, 1].map(sx => { const hg = new THREE.Group(); hg.position.set(sx * (xo + .08), yB, zF - .03); g.add(hg);
         const leaf = box(xo + .06, inH - .04, .04, M.trailerBox, -sx * (xo + .06) / 2, inH / 2, 0); hg.add(leaf);
         [.3, inH - .3].forEach(y => hg.add(box(.05, .22, .06, M.galvDark, -sx * (xo + .06) / 2, y, .04)));   // lock bars
         return { hg, sx }; });
-      doors = t => { const a = Math.PI * 1.5 * ease(t); hinges.forEach(({ hg, sx }) => { hg.rotation.y = sx > 0 ? -a : a; }); lamp.intensity = t > .5 ? 3 : 0; };
+      doors = t => { const a = Math.PI * 1.5 * ease(t); hinges.forEach(({ hg, sx }) => { hg.rotation.y = sx > 0 ? -a : a; }); lamp.intensity = lamp2.intensity = t > .5 ? 2.5 : 0; };
     }
   } else {   // fallback if the library did not load: a plain box on wheels
     const L = T.len * .75, W = 2.5, H = 2.7, bed = T.bedH; g.add(box(W, H, L, M.trailerBox, 0, bed + H / 2, L / 2)); g.add(box(W, .35, L, M.chassis, 0, bed - .18, L / 2));
@@ -509,9 +512,9 @@ export function buildWarehouse({ mats, st, studio = false }) {
   for (let i = 0; i < bays; i++) {
     const cx = bayX(i); const bay = new THREE.Group(); bay.position.x = cx; g.add(bay);
     // dock edge plate
-    bay.add(box(w + .4, .08, .3, M.galv, 0, DOCK_H - .04, .12, { shadow: false }));
+    bay.add(box(w + .4, .06, .3, M.galv, 0, DOCK_H - .13, .12, { shadow: false }));   // galvanised dock edge below the leveller level, the lip passes over it
     const door = buildDoor({ M, st: { ...st, bayNo: i + 1 }, w, h }); bay.add(door.group); rigs.doors.push(door);
-    bay.add(box(w + .7, .14, .02, M.yellowStripe, 0, DOCK_H - .09, .07, { shadow: false }));   // yellow dock-edge marking
+    bay.add(box(w + .7, .14, .02, M.yellowStripe, 0, DOCK_H - .2, .07, { shadow: false }));   // yellow dock-edge marking
     const truckKind = st.truck; const bedH = TRUCKS[truckKind] && truckKind !== 'none' ? TRUCKS[truckKind].bedH : null;
     const truckRearZ = bedH != null ? .34 + (TRUCKS[truckKind].doorFaceZ || 0) : null;
     const lev = buildLeveller({ M, st, w, bedH, truckRearZ }); bay.add(lev.group); rigs.levellers.push(lev);
