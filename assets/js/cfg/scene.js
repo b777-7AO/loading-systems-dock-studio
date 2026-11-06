@@ -122,6 +122,7 @@ function sectionalLeaf(w, h, ph, st, M, d) {
       p.add(box(w - .06, H - .1, .01, fv.glass === 'mesh' ? M.mesh : M.glass, 0, 0, t / 2, { shadow: false }));
     } else {
       const body = new THREE.Mesh(panelGeometry(w, H, t), [M.doorEdge, faceMat]); body.position.set(0, -H / 2, -t / 2); body.castShadow = true; body.receiveShadow = true; p.add(body);
+      p.add(box(w - .01, H - .012, .006, M.doorBack, 0, 0, -t / 2 - .002, { shadow: false }));   // inside skin (inner colour option)
       if (i === winIndex) {
         const win = WINDOWS[st.windows]; const count = Math.max(1, Math.min(4, st.windowCount || 1, Math.floor(w / .9))); const gap = Math.min(1.3, (w - .5) / count);
         for (let k = 0; k < count; k++) {
@@ -146,6 +147,7 @@ function sectionalLeaf(w, h, ph, st, M, d) {
   const bottom = parts[0].p;
   if (st.stepDown) {   // stepped dock: T-shaped leaf, a narrower extension below the bottom panel drops into the lower zone in front of the leveller
     const ext = new THREE.Mesh(panelGeometry(st.stepW - .02, st.stepDown, t), faceMat); ext.position.set(0, -H / 2 - st.stepDown, 0);   /* panelGeometry is centred in x */ ext.castShadow = ext.receiveShadow = true; bottom.add(ext);
+    bottom.add(box(st.stepW - .03, st.stepDown - .01, .006, M.doorBack, 0, -H / 2 - st.stepDown / 2, -.003, { shadow: false }));
     bottom.add(box(st.stepW - .02, .03, .05, M.black, 0, -H / 2 - st.stepDown + .015, t / 2, { shadow: false }));   // seal under the extension
   }
   const seal = part('bottom_seal', 0, -H / 2 + .01, 0, { scale: [w, 1, 1], shadow: false }); if (seal) bottom.add(seal); else bottom.add(box(w, .03, .05, M.black, 0, -H / 2 + .015, 0, { shadow: false }));

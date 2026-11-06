@@ -10,8 +10,8 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import * as C from './cfg/catalog.js?v=32';
-import { createMaterials, TEX } from './cfg/materials.js?v=28';
-import { buildWarehouse, buildStudio, dispose, DOCK_H, ease, registerParts, registerVehicles, mergeStatic, QUALITY } from './cfg/scene.js?v=47';
+import { createMaterials, TEX } from './cfg/materials.js?v=29';
+import { buildWarehouse, buildStudio, dispose, DOCK_H, ease, registerParts, registerVehicles, mergeStatic, QUALITY } from './cfg/scene.js?v=48';
 
 const $ = id => document.getElementById(id);
 const q = new URLSearchParams(location.search);
@@ -20,14 +20,14 @@ let mobile = mobileMQ.matches; QUALITY.mobile = mobile || coarse;
 
 /* ------------------------------------------------------------------ State */
 const state = {
-  door: 'dockdoor', w: 3000, h: 3250, ral: '9002', panel: 'industrie', lift: 'normal', lift620: 'SL', windows: 'rect', windowCount: 1, fullvision: 'none', wicket: 'none', wicketLock: 'handle',
+  door: 'dockdoor', w: 3000, h: 3250, ral: '9002', innerColor: false, ralInner: '9002', panel: 'industrie', lift: 'normal', lift620: 'SL', windows: 'rect', windowCount: 1, fullvision: 'none', wicket: 'none', wicketLock: 'handle',
   operation: 'rope', lock: 'none', safety: [], controls: [], numbers: true, numberStyle: 'plate', grille: false,
   leveller: 'tele', levellerLen: 2500, levellerW: 2000, levellerCap: 'std', shelter: 'curtain', bumper: 'rubber', restraint: 'auto', light: 'led', trafficLight: true, bollards: true, wheelGuides: true, dockControl: 'combi',
   mandoor: 'none', mandoorW: 1000, mandoorH: 2125, mandoorLock: 'std', mandoorThermal: true,
   bays: 3, activeBay: 1, truck: 'truck', truckBays: 'one', facade: 'panel_light', interiorLight: 'led_line',
   mode: 'yard', view: 'yard',
 };
-const ARR = ['safety', 'controls']; const BOOL = ['numbers', 'grille', 'trafficLight', 'bollards', 'wheelGuides', 'mandoorThermal'];
+const ARR = ['safety', 'controls']; const BOOL = ['numbers', 'grille', 'trafficLight', 'bollards', 'wheelGuides', 'mandoorThermal', 'innerColor'];
 const KEYS = Object.keys(state).filter(k => k !== 'view');
 function hash() { return '#' + KEYS.map(k => `${k}=${ARR.includes(k) ? state[k].join('.') : BOOL.includes(k) ? (state[k] ? 1 : 0) : state[k]}`).join('&'); }
 function readHash() {
@@ -44,6 +44,7 @@ function normalise() {
   if (d.priced === 'hs620') state.operation = 'motor';
   if (state.door === 'hs620' && !C.LIFT_620[state.lift620]) state.lift620 = 'SL';
   if (!C.RAL.some(r => r.id === state.ral)) state.ral = '9002';
+  if (!C.RAL.some(r => r.id === state.ralInner)) state.ralInner = '9002';
   state.windowCount = clamp(state.windowCount || 1, [1, Math.max(1, Math.min(4, Math.floor(state.w / 900)))]);
   if (state.leveller === 'stepped') state.grille = false;   // stepped dock: no ventilation grille in the door if (!['door', 'plate'].includes(state.numberStyle)) state.numberStyle = 'door';
   if (state.mode === 'studio') state.view = 'studio';
@@ -128,6 +129,7 @@ function updateManualButtons() {
 function buildWorld() {
   if (wh) { world.remove(wh.group); dispose(wh.group); wh = null; } if (studioGroup) { world.remove(studioGroup); dispose(studioGroup); studioGroup = null; }
   const ral = C.RAL.find(r => r.id === state.ral); mats.applyDoor(ral.hex, { kind: C.DOORS[state.door].kind, metallic: ral.metallic });
+  const ri = state.innerColor ? C.RAL.find(r => r.id === state.ralInner) : ral; mats.applyDoorInner(ri.hex, { metallic: ri.metallic });
   const studio = state.mode === 'studio';
   wh = buildWarehouse({ mats, st: state, studio }); dims = wh.dims; window.__mergeInfo = mergeStatic(wh.group); world.add(wh.group);
   if (studio) { studioGroup = buildStudio({ M, dims }); world.add(studioGroup); }
@@ -309,6 +311,8 @@ function renderUI() {
   const pn = $('optPanel'); pn.innerHTML = ''; Object.entries(C.PANEL_TYPES).forEach(([id, v]) => chip(pn, id, v.label + (v.pct ? ` +${v.pct} %` : ''), state.panel === id));
   const lf = $('optLift'); lf.innerHTML = ''; if (d.priced === 'hs620') Object.entries(C.LIFT_620).forEach(([id, v]) => chip(lf, id, v.label + (v.pct ? ` +${v.pct} %` : ''), state.lift620 === id)); else Object.entries(C.LIFT).forEach(([id, v]) => chip(lf, id, v.label + (v.pct ? ` +${v.pct} %` : v.fix ? ` +${v.fix} €` : ''), state.lift === id));
   const rc = $('optRal'); rc.innerHTML = ''; C.RAL.forEach(r => swatch(rc, r.id, `RAL ${r.id}<br>${r.name}`, r.hex, state.ral === r.id));
+  const ic = $('opt_innerColor'); if (ic) ic.checked = !!state.innerColor; $('innerColorRow').hidden = !state.innerColor;
+  const ric = $('optRalInner'); ric.innerHTML = ''; C.RAL.forEach(r => swatch(ric, r.id, `RAL ${r.id}<br>${r.name}`, r.hex, state.ralInner === r.id));
   const wn = $('optWindows'); wn.innerHTML = ''; Object.entries(C.WINDOWS).forEach(([id, v]) => chip(wn, id, v.label + (v.price ? ` · ${C.eur(v.price)}/St.` : ''), state.windows === id));
   const wc = $('optWindowCount'); wc.innerHTML = ''; const maxWin = Math.max(1, Math.min(4, Math.floor(state.w / 900))); for (let i = 1; i <= maxWin; i++) chip(wc, String(i), i === 1 ? '1 Fenster' : `${i} Fenster`, state.windowCount === i); $('windowCountRow').hidden = state.windows === 'none';
   const fv = $('optFullvision'); fv.innerHTML = ''; Object.entries(C.FULLVISION).forEach(([id, v]) => chip(fv, id, v.label + (v.perM ? ` · ${C.eur(v.perM)}/m` : ''), state.fullvision === id));
@@ -351,7 +355,7 @@ function renderUI() {
 function renderSummary() {
   const d = C.DOORS[state.door]; const p = priceDoor(); const md = priceMandoor(); const items = dockItems();
   const ral = C.RAL.find(r => r.id === state.ral);
-  const rows = [['Tor', `${d.label}, ${state.w} × ${state.h} mm, RAL ${ral.id} ${ral.name}`], ['Docks', `${state.bays} × ${C.TRUCKS[state.truck].label}`], ['Überladebrücke', state.leveller === 'none' ? 'keine' : `${C.LEVELLERS[state.leveller].label}, ${state.levellerLen} × ${state.levellerW} mm`], ['Torabdichtung', state.shelter === 'none' ? 'keine' : C.SHELTERS[state.shelter].label], ['Puffer', C.BUMPERS[state.bumper].label], ['Sicherheit', [state.restraint !== 'none' ? C.RESTRAINTS[state.restraint].label : null, state.light !== 'none' ? C.LIGHTS[state.light].label : null, state.trafficLight ? 'Ampel' : null].filter(Boolean).join(', ') || 'Serie'], ['Steuerung', C.DOCK_CONTROL[state.dockControl].label]];
+  const rows = [['Tor', `${d.label}, ${state.w} × ${state.h} mm, RAL ${ral.id} ${ral.name}${state.innerColor ? `, innen RAL ${C.RAL.find(r => r.id === state.ralInner).id} ${C.RAL.find(r => r.id === state.ralInner).name}` : ''}`], ['Docks', `${state.bays} × ${C.TRUCKS[state.truck].label}`], ['Überladebrücke', state.leveller === 'none' ? 'keine' : `${C.LEVELLERS[state.leveller].label}, ${state.levellerLen} × ${state.levellerW} mm`], ['Torabdichtung', state.shelter === 'none' ? 'keine' : C.SHELTERS[state.shelter].label], ['Puffer', C.BUMPERS[state.bumper].label], ['Sicherheit', [state.restraint !== 'none' ? C.RESTRAINTS[state.restraint].label : null, state.light !== 'none' ? C.LIGHTS[state.light].label : null, state.trafficLight ? 'Ampel' : null].filter(Boolean).join(', ') || 'Serie'], ['Steuerung', C.DOCK_CONTROL[state.dockControl].label]];
   if (md) rows.push(['Nebentür', `604NG ${state.mandoorW} × ${state.mandoorH} mm`]);
   $('summary').innerHTML = rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('');
   const box = $('priceBox'); let html = '';
@@ -374,7 +378,7 @@ function update(patch, rebuild = true) {
 document.addEventListener('click', e => {
   const b = e.target.closest('button[data-id]'); if (!b) return; const id = b.dataset.id, box = b.parentElement.id;
   const num = v => parseInt(v, 10);
-  const map = { optDoor: () => update({ door: id }), optPanel: () => update({ panel: id }), optLift: () => update(state.door === 'hs620' ? { lift620: id } : { lift: id }), optRal: () => update({ ral: id }), optWindows: () => update({ windows: id }), optWindowCount: () => update({ windowCount: num(id) }), optNumberStyle: () => update({ numberStyle: id }), optFullvision: () => update({ fullvision: id }),
+  const map = { optDoor: () => update({ door: id }), optPanel: () => update({ panel: id }), optLift: () => update(state.door === 'hs620' ? { lift620: id } : { lift: id }), optRal: () => update({ ral: id }), optRalInner: () => update({ ralInner: id }), optWindows: () => update({ windows: id }), optWindowCount: () => update({ windowCount: num(id) }), optNumberStyle: () => update({ numberStyle: id }), optFullvision: () => update({ fullvision: id }),
     optWicket: () => update({ wicket: id }), optWicketLock: () => update({ wicketLock: id }, false), optOperation: () => update({ operation: id }), optLock: () => update({ lock: id }, false),
     optSafety: () => update({ safety: state.safety.includes(id) ? state.safety.filter(x => x !== id) : [...state.safety, id] }, false), optControls: () => update({ controls: state.controls.includes(id) ? state.controls.filter(x => x !== id) : [...state.controls, id] }, false),
     optLeveller: () => update({ leveller: id }), optLevellerLen: () => update({ levellerLen: num(id) }), optLevellerW: () => update({ levellerW: num(id) }), optLevellerCap: () => update({ levellerCap: id }, false), optShelter: () => update({ shelter: id }), optBumper: () => update({ bumper: id }),
@@ -383,7 +387,7 @@ document.addEventListener('click', e => {
     optSize: () => { const [w, h] = id.split('x').map(num); update({ w, h }); }, optPreset: () => update(C.PRESETS.find(p => p.id === id).patch) };
   if (map[box]) map[box]();
 });
-['numbers', 'grille', 'trafficLight', 'bollards', 'wheelGuides', 'mandoorThermal'].forEach(k => { const i = $('opt_' + k); if (i) i.addEventListener('change', e => update({ [k]: e.target.checked }, k !== 'grille' && k !== 'mandoorThermal')); });
+['numbers', 'grille', 'trafficLight', 'bollards', 'wheelGuides', 'mandoorThermal', 'innerColor'].forEach(k => { const i = $('opt_' + k); if (i) i.addEventListener('change', e => update({ [k]: e.target.checked }, k !== 'grille' && k !== 'mandoorThermal' && k !== 'innerColor')); });
 function sizeInput(id, key) { const e = $(id); const commit = () => { let v = parseInt(e.value, 10); if (!Number.isFinite(v)) v = state[key]; update({ [key]: v }); }; e.addEventListener('change', commit); e.addEventListener('keydown', ev => { if (ev.key === 'Enter') { ev.preventDefault(); commit(); e.blur(); } }); }
 sizeInput('inpW', 'w'); sizeInput('inpH', 'h');
 $('resetBtn').addEventListener('click', () => { history.replaceState(null, '', location.pathname); location.reload(); });

@@ -114,6 +114,7 @@ export function createMaterials(renderer, manager, { mobile = false } = {}) {
     doorMicro: phys({ map: tx('hf_stucco_d.jpg', { srgb: true, tile: .9 }), normalMap: microN, color: 0xe7ebe3, roughness: .58, metalness: .2, normalScale: new THREE.Vector2(.7, .7), clearcoat: .12, clearcoatRoughness: .5 }),
     doorEdge: std({ color: 0x9fa4a8, metalness: .6, roughness: .5 }),
     doorInner: std({ ...pbr('hf_stucco', .9), color: 0xe6e8e6, roughness: .65, metalness: .2, normalScale: new THREE.Vector2(.45, .45) }),
+    doorBack: std({ ...pbr('hf_stucco', .9), color: 0xe7ebe3, roughness: .6, metalness: .2, normalScale: new THREE.Vector2(.45, .45) }),   // inside face of the sectional door leaf (own RAL when 'Innenseite andere Farbe' is on)
     curtainFabric: std({ color: 0xf0f2f1, roughness: .55, side: THREE.DoubleSide }),
     rollerSlats: std({ ...pbr('cc_corrugated', .35), color: 0xd4d7d9, metalness: .8, roughness: .45, normalScale: new THREE.Vector2(.8, .8) }),
     // dock
@@ -166,5 +167,6 @@ export function createMaterials(renderer, manager, { mobile = false } = {}) {
     M.doorInner.color.set(ral).lerp(new THREE.Color(0xffffff), .25);
     M.curtainFabric.color.set(ral);
   }
-  return { M, tx, pbr, noiseTex, ribN, microN, hazard, applyDoor };
+  function applyDoorInner(ral, { metallic } = {}) { M.doorBack.color.set(ral); M.doorBack.metalness = metallic ? .55 : .2; M.doorBack.roughness = metallic ? .4 : .6; M.doorBack.needsUpdate = true; }
+  return { M, tx, pbr, noiseTex, ribN, microN, hazard, applyDoor, applyDoorInner };
 }
