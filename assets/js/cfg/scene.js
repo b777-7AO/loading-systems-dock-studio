@@ -207,7 +207,7 @@ export function buildDoor({ M, st, w, h }) {
     [-1, 1].forEach(s => {
       const tg = trackGeometry({ Ht, R, Rr, zo, horizLen, vertical, mirror: s < 0 }); const tm = new THREE.Mesh(tg, trackMat); tm.position.set(s * tx, 0, zL); tm.castShadow = true; tm.receiveShadow = true; g.add(tm);
       if (heavy) g.add(box(.14, Ht + .3, .16, M.galv, s * (w / 2 + .16), (Ht + .3) / 2, zL - .06));   // 620NG self-supporting columns outside the tracks
-      if (!vertical) for (let k = 0; k <= 2; k++) { const zk = zL - R - .3 - k * (horizLen - .6) / 2; const hh = HALL_H - (Ht + Rr + .05); g.add(box(.04, hh, .04, M.galv, s * (tx + .02), Ht + Rr + .05 + hh / 2, zk, { shadow: false })); g.add(box(.08, .04, .3, M.galv, s * tx, Ht + Rr + .07, zk, { shadow: false })); }   // hanger angles up to the roof structure
+      if (!vertical) for (let k = 0; k <= 2; k++) { const zk = zL - R - .3 - k * (horizLen - .6) / 2; const hh = st.studio ? .9 : HALL_H - (Ht + Rr + .05); g.add(box(.04, hh, .04, M.galv, s * (tx + .02), Ht + Rr + .05 + hh / 2, zk, { shadow: false })); g.add(box(.08, .04, .3, M.galv, s * tx, Ht + Rr + .07, zk, { shadow: false })); }   // hanger angles up to the roof structure
     });
     // torsion shaft with spring packs and cable drums above the opening (inside)
     // torsion spring assembly as on a real sectional door: solid shaft on end bearing brackets, centre spring-anchor bracket on the wall,
@@ -703,6 +703,13 @@ export function buildWarehouse({ mats, st, studio = false }) {
   // facade: dock wall (concrete) up to DOCK_H, sandwich panels above
   const facMat = st.facade === 'panel_dark' ? M.facade.clone() : st.facade === 'panel_white' ? M.facade.clone() : st.facade === 'brick' ? new THREE.MeshStandardMaterial({ ...mats.pbr('brick', 2.4), roughness: 1 }) : M.facade;
   if (st.facade === 'panel_dark') facMat.color.set(0x4a4f53); if (st.facade === 'panel_white') facMat.color.set(0xeceeee);
+  if (studio) {
+    // product studio: no hall, only the equipment on a concrete dock block (U-shaped round the leveller pit)
+    const len = (st.levellerLen || 2500) / 1000 + .3, pw = (st.levellerW || 2000) / 1000 + .3, bw = w + 2.6, bd = len + 1.2;
+    [-1, 1].forEach(sx => g.add(box((bw - pw) / 2, DOCK_H, bd, M.plinth, sx * (pw / 2 + (bw - pw) / 4), DOCK_H / 2, -bd / 2 + .02)));
+    g.add(box(pw, DOCK_H, bd - len - .5, M.plinth, 0, DOCK_H / 2, -len - .5 - (bd - len - .5) / 2 + .02));
+    g.add(box(pw, DOCK_H - .8, len + .5, M.plinth, 0, (DOCK_H - .8) / 2, -(len + .5) / 2 + .02));   // under the pit
+  } else {
   const front = wall(W, H + .4, WALL_T, openings, facMat); front.position.set(x0, 0, 0); g.add(front);
   // dock wall: concrete face below the openings, split per bay
   let px = x0; openings.forEach(o => { const ox = x0 + o.x; if (ox - px > .01) g.add(box(ox - px, DOCK_H + .02, .06, M.plinth, (ox + px) / 2, (DOCK_H + .02) / 2, .03)); px = ox + o.w; }); if (x0 + W - px > .01) g.add(box(x0 + W - px, DOCK_H + .02, .06, M.plinth, (x0 + W + px) / 2, (DOCK_H + .02) / 2, .03));
@@ -718,6 +725,7 @@ export function buildWarehouse({ mats, st, studio = false }) {
   const lightMeshes = [];
   if (st.interiorLight === 'led_line') { for (let i = 0; i < 3; i++) { const z = -4 - i * 7; const l = box(W - 2, .06, .14, M.lamp, 0, H - .62, z, { shadow: false }); g.add(l); lightMeshes.push(l); if (!lite || i < 2) { const pl = new THREE.PointLight(0xfff4e0, 60, 26, 1.6); pl.position.set(0, H - 1, z); g.add(pl); } } }
   else if (st.interiorLight === 'highbay') { for (let i = 0; i < 3; i++) for (let k = 0; k < Math.max(2, Math.round(W / 9)); k++) { const x = x0 + 4.5 + k * (W - 9) / Math.max(1, Math.round(W / 9) - 1), z = -4 - i * 7; const l = cyl(.22, .12, M.lamp, x, H - .7, z, 20, { shadow: false }); g.add(l); lightMeshes.push(l); g.add(cyl(.26, .1, M.dark, x, H - .6, z, 20, { shadow: false })); if (!lite || (i === 1)) { const pl = new THREE.PointLight(0xfff4e0, 45, 20, 1.6); pl.position.set(x, H - 1.1, z); g.add(pl); } } }
+  }   // end of hall (not in the studio)
   // interior: yellow safety line, racks, forklift, control box per bay
   if (!studio) {
     g.add(plane(W - .6, .12, M.yellowStripe, 0, DOCK_H + .003, -4.2)); g.add(plane(W - .6, .12, M.yellowStripe, 0, DOCK_H + .003, -4.6));
@@ -733,7 +741,7 @@ export function buildWarehouse({ mats, st, studio = false }) {
   }
   // yard: asphalt apron, lane markings per bay, kerb, lawn, hedge, fence line
   const yardD = studio ? 10 : 54;
-  g.add(plane(W + (studio ? 0 : 60), yardD, M.asphalt, 0, 0, yardD / 2));
+  if (!studio) g.add(plane(W + 60, yardD, M.asphalt, 0, 0, yardD / 2));
   if (!studio) {
     for (let i = 0; i < bays; i++) [-1, 1].forEach(s => g.add(plane(.12, 18, M.yellowStripe, bayX(i) + s * (1.5), .004, 9.5)));
     g.add(buildLandscape({ M, W, yardD, x0, bays, bayX, lite }));
@@ -744,7 +752,7 @@ export function buildWarehouse({ mats, st, studio = false }) {
   for (let i = 0; i < bays; i++) {
     const cx = bayX(i); const bay = new THREE.Group(); bay.position.x = cx; g.add(bay);
     // dock edge plate
-    const door = buildDoor({ M, st: { ...st, bayNo: i + 1 }, w, h }); bay.add(door.group); rigs.doors.push(door);
+    const door = buildDoor({ M, st: { ...st, bayNo: i + 1, studio }, w, h }); bay.add(door.group); rigs.doors.push(door);
     bay.add(box(w + .7, .14, .02, M.yellowStripe, 0, DOCK_H - .2, .07, { shadow: false }));   // yellow dock-edge marking
     const truckKind = st.truck; const bedH = TRUCKS[truckKind] && truckKind !== 'none' ? TRUCKS[truckKind].bedH : null;
     const truckRearZ = bedH != null ? .34 + (TRUCKS[truckKind].doorFaceZ || 0) : null;
@@ -754,7 +762,7 @@ export function buildWarehouse({ mats, st, studio = false }) {
     const rs = buildRestraint({ M, st, w }); bay.add(rs.group); rigs.restraints.push(rs);
     const dl = buildDockLight({ M, st, w, h }); bay.add(dl.group); rigs.lights.push(dl);
     if (st.trafficLight) { const tl = buildTrafficLight({ M, w, h }); bay.add(tl.group); rigs.traffic.push(tl); }
-    if (st.numbers && st.numberStyle === 'plate') bay.add(numberPlate({ M, n: i + 1, w, h }));
+    if (st.numbers && st.numberStyle === 'plate' && !studio) bay.add(numberPlate({ M, n: i + 1, w, h }));
     if (st.bollards) [-1, 1].forEach(s => { const b = part('bollard', s * (w / 2 + .85), 0, .55); if (b) bay.add(b); else bay.add(cyl(.08, 1.1, M.yellow, s * (w / 2 + .85), .55, .55, 16)); });
     if (st.wheelGuides) [-1, 1].forEach(s => { if (s > 0 && st.restraint && st.restraint !== 'none') return;   // the restraint rail takes the right-hand side
       const x = s * 1.55; const t = cyl(.06, 4.6, M.yellow, x, .18, 4.6, 12); t.rotation.x = Math.PI / 2; bay.add(t); [2.5, 6.6].forEach(z => bay.add(cyl(.06, .3, M.yellow, x, .1, z, 12))); });
