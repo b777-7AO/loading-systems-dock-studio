@@ -11,7 +11,7 @@ import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import * as C from './cfg/catalog.js?v=28';
 import { createMaterials, TEX } from './cfg/materials.js?v=28';
-import { buildWarehouse, buildStudio, dispose, DOCK_H, ease, registerParts, registerVehicles, mergeStatic, QUALITY } from './cfg/scene.js?v=29';
+import { buildWarehouse, buildStudio, dispose, DOCK_H, ease, registerParts, registerVehicles, mergeStatic, QUALITY } from './cfg/scene.js?v=30';
 
 const $ = id => document.getElementById(id);
 const q = new URLSearchParams(location.search);
@@ -147,8 +147,8 @@ function views() {
     hall: { pos: [cx - 5, DOCK_H + 3.2, -13], tgt: [cx + 1, DOCK_H + 1.4, -2], polar: .3, dist: [2, 260] },
     top: { pos: [cx, 34, 12], tgt: [cx, 0, -2], polar: .05, dist: [10, 400] },
     truck: (() => { const tr = wh && wh.rigs.trucks[0]; const tz = tr ? tr.group.position.z : 12; const L = tr ? tr.len : 14; return { pos: [cx + 7, 3.2, tz + L * .55 + 11], tgt: [cx - .5, 2.0, tz + L * .45], polar: .3, dist: [3, 260] }; })(),
-    studio: { pos: [w * 1.2 + 4, 2.4, 9.5], tgt: [0, yc + .2, 0], polar: .25, dist: [3, 90] },
-    detail: { pos: [-1.8, DOCK_H + 1.4, 3.4], tgt: [-.5, DOCK_H + 1.1, 0], polar: .25, dist: [1, 90] },
+    studio: { pos: [w * 1.2 + 4, 2.4, 9.5], tgt: [0, yc + .2, 0], polar: .25, dist: [3, 260] },
+    detail: { pos: [-1.8, DOCK_H + 1.4, 3.4], tgt: [-.5, DOCK_H + 1.1, 0], polar: .25, dist: [1, 260] },
   };
 }
 function goView(name, instant = false) {

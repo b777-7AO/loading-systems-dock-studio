@@ -789,10 +789,10 @@ export function buildWarehouse({ mats, st, studio = false }) {
 
 /* Studio cyclorama for product mode */
 export function buildStudio({ M, dims }) {
-  const g = new THREE.Group(); const r = Math.max(14, dims.W * 1.5);
+  const g = new THREE.Group(); const r = Math.max(70, dims.W * 3);   // large stage so the camera can orbit and zoom out behind the equipment
   const floor = new THREE.Mesh(new THREE.CircleGeometry(r, 72), new THREE.MeshStandardMaterial({ color: 0xe2e3e5, roughness: .35 })); floor.rotation.x = -Math.PI / 2; floor.position.y = -.001; floor.receiveShadow = true; g.add(floor);
-  const s = new THREE.Shape(); s.moveTo(-3, 0); s.lineTo(0, 0); s.absarc(0, 1.6, 1.6, -Math.PI / 2, 0, false); s.lineTo(1.6, 16); s.lineTo(2.2, 16); s.lineTo(2.2, -.4); s.lineTo(-3, -.4); s.closePath();
+  const s = new THREE.Shape(); s.moveTo(-3, 0); s.lineTo(0, 0); s.absarc(0, 3, 3, -Math.PI / 2, 0, false); s.lineTo(3, 60); s.lineTo(3.6, 60); s.lineTo(3.6, -.4); s.lineTo(-3, -.4); s.closePath();
   const cyc = new THREE.Mesh(new THREE.ExtrudeGeometry(s, { depth: r * 2, bevelEnabled: false }), new THREE.MeshStandardMaterial({ color: 0xe9eaec, roughness: .95 }));
-  cyc.rotation.y = Math.PI / 2; cyc.position.set(-r, -.002, -(dims.D + 2.2)); cyc.receiveShadow = true; g.add(cyc);
+  cyc.rotation.y = Math.PI / 2; cyc.position.set(-r, -.002, -r * .75); cyc.receiveShadow = true; cyc.material.side = THREE.DoubleSide; g.add(cyc);   // cyclorama far behind, visible from both sides
   return g;
 }
