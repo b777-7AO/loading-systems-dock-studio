@@ -44,7 +44,8 @@ function normalise() {
   if (d.priced === 'hs620') state.operation = 'motor';
   if (state.door === 'hs620' && !C.LIFT_620[state.lift620]) state.lift620 = 'SL';
   if (!C.RAL.some(r => r.id === state.ral)) state.ral = '9002';
-  state.windowCount = clamp(state.windowCount || 1, [1, Math.max(1, Math.min(4, Math.floor(state.w / 900)))]); if (!['door', 'plate'].includes(state.numberStyle)) state.numberStyle = 'door';
+  state.windowCount = clamp(state.windowCount || 1, [1, Math.max(1, Math.min(4, Math.floor(state.w / 900)))]);
+  if (state.leveller === 'stepped') state.grille = false;   // stepped dock: no ventilation grille in the door if (!['door', 'plate'].includes(state.numberStyle)) state.numberStyle = 'door';
   if (state.mode === 'studio') state.view = 'studio';
 }
 readHash();
@@ -308,6 +309,7 @@ function renderUI() {
   const sf = $('optSafety'); sf.innerHTML = ''; Object.entries(C.SAFETY).forEach(([id, v]) => chip(sf, id, v.label + (v.price ? ` · ${C.eur(v.price)}` : ' · Serie'), state.safety.includes(id)));
   const ct = $('optControls'); ct.innerHTML = ''; Object.entries(C.CONTROLS).forEach(([id, v]) => chip(ct, id, v.label + ` · ${C.eur2(v.price)}`, state.controls.includes(id)));
   ['numbers', 'grille', 'trafficLight', 'bollards', 'wheelGuides', 'mandoorThermal'].forEach(k => { const i = $('opt_' + k); if (i) i.checked = !!state[k]; });
+  { const g = $('opt_grille'); if (g) { const row = g.closest('.cfg-switch'); g.disabled = state.leveller === 'stepped'; if (row) row.hidden = state.leveller === 'stepped'; } }
   const ns = $('optNumberStyle'); ns.innerHTML = ''; [['door', 'Aufgemalt am Tor'], ['plate', 'Rotes Schild an der Fassade']].forEach(([id, l]) => chip(ns, id, l, state.numberStyle === id)); $('numberStyleRow').hidden = !state.numbers;
   // dock
   const lv = $('optLeveller'); lv.innerHTML = ''; Object.entries(C.LEVELLERS).forEach(([id, v]) => card(lv, id, v.label, v.desc || 'Ohne Rampe', state.leveller === id));
