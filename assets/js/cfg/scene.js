@@ -789,7 +789,7 @@ export function buildWarehouse({ mats, st, studio = false }) {
     const truckRearZ = bedH != null ? .34 + (TRUCKS[truckKind].doorFaceZ || 0) : null;
     const lev = buildLeveller({ M, st, w, bedH, truckRearZ }); bay.add(lev.group); rigs.levellers.push(lev);
     const sh = buildShelter({ M, st, w, h }); bay.add(sh.group); rigs.shelters.push(sh);
-    bay.add(buildBumpers({ M, st, w }));
+    if (st.leveller !== 'stepped') bay.add(buildBumpers({ M, st, w }));   // stepped dock: no bumpers in front of the dock
     const rs = buildRestraint({ M, st, w }); bay.add(rs.group); rigs.restraints.push(rs);
     const dl = buildDockLight({ M, st, w, h }); bay.add(dl.group); rigs.lights.push(dl);
     if (st.trafficLight) { const tl = buildTrafficLight({ M, w, h }); bay.add(tl.group); rigs.traffic.push(tl); }
