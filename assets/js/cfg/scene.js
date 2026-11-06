@@ -263,8 +263,9 @@ export function buildShelter({ M, st, w, h }) {
   // 2.55 m wide / 3.9 m high trailer overlaps the curtains and pushes them back when it docks (no gap between shelter and vehicle)
   const depth = .65, top = .95; const y0 = DOCK_H - .1; const T = TRUCKS[st.truck]; const bodyW = (T && T.bodyW) || 0, bodyH = (T && T.bodyH) || 0;
   // frame height so that the 950 mm top curtain ends 100 mm above the vehicle roof (it does not touch; 403M frames come in several heights)
-  const W = Math.max(3.4, w + .4), Hs = Math.max(3.5, h + .25, bodyH + .1 + top - y0); const side = (W - 2.3) / 2;   // clear width 2300
-  const ovS = Math.max(0, bodyW / 2 - (W / 2 - side)), ovT = 0;   // side curtains wrap the body, the top curtain hangs free
+  // side curtains 600 mm, frame width so that the curtains end 60 mm outside the vehicle body on each side (close, not touching)
+  const side = .6; const W = Math.max(3.4, w + .4, bodyW + .12 + 2 * side), Hs = Math.max(3.5, h + .25, bodyH + .1 + top - y0);
+  const ovS = 0, ovT = 0;   // nothing folds: all curtains hang free with a small gap to the vehicle
   // the part of each curtain that the vehicle overlaps folds round and lies flat along the body (side) or the roof (top)
   let animate = () => {};
   const marks = (zf, frameW = side, topH = top) => {   // white reflective marks as on the LS 403M: two parallel diagonals in each top corner, one vertical pill per side curtain
