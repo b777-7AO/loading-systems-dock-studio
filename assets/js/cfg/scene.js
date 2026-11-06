@@ -221,11 +221,12 @@ export function buildLeveller({ M, st, w, bedH, truckRearZ = null }) {
   // pit box behind the facade, plate hinged at the rear
   const plateEdgeZ = -WALL_T - .12;   // plate front edge 6 cm behind the door leaf (leaf at -WALL_T-.06): the door closes in front of the retracted lip
   const pit = new THREE.Group(); pit.position.set(0, DOCK_H, plateEdgeZ);
-  pit.add(box(pw + .3, .02, len + .3, M.levellerFrame, 0, -.74, -(len + .3) / 2, { shadow: false }));   // pit floor
-  [-1, 1].forEach(s => pit.add(box(.15, .74, len + .3, M.plinth, s * (pw / 2 + .075), -.37, -(len + .3) / 2)));
-  pit.add(box(pw + .3, .74, .15, M.plinth, 0, -.37, -(len + .3) + .075));
+  const gap = .04;   // pit is only 2 cm bigger than the plate on each side: the leveller is the whole area, not a plate in a wide frame
+  pit.add(box(pw + gap, .02, len + gap, M.levellerFrame, 0, -.74, -(len + gap) / 2, { shadow: false }));   // pit floor
+  [-1, 1].forEach(s => pit.add(box(.04, .74, len + gap, M.plinth, s * (pw / 2 + gap / 2 + .02), -.37, -(len + gap) / 2)));
+  pit.add(box(pw + gap + .08, .74, .04, M.plinth, 0, -.37, -(len + gap) - .02));
   // pit frame angle flush in the floor
-  pit.add(box(pw + .3, .004, len + .3, M.galvDark, 0, .003, -(len + .3) / 2 + .0, { shadow: false })); pit.add(box(pw + .14, .006, len + .14, M.dark, 0, .004, -(len + .3) / 2 + .0, { shadow: false }));
+  pit.add(box(pw + gap + .04, .004, len + gap + .02, M.galvDark, 0, .003, -(len + gap) / 2 + .01, { shadow: false }));   // thin galvanised pit frame angle
   const hinge = new THREE.Group(); hinge.position.set(0, -.02, -len); hinge.userData.dynamic = true; pit.add(hinge);   // plate top 1 cm above the pit frame at rest (frame boxes sit at +.001..+.007), so the tread surface is always visible
   const plate = uvMetres(box(pw, .06, len, M.levellerPlate, 0, 0, len / 2)); hinge.add(plate);
   // hazard marking across the lip hinge and on the lip, as on the 232NG / 233NG
