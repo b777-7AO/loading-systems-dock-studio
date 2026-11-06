@@ -370,8 +370,11 @@ export function buildDockLight({ M, st, w, h }) {
   return { group: g, setOn: on => { spot.intensity = on ? 60 : 0; head.userData.lens.material = on ? M.lamp : M.lampOff; } };
 }
 export function buildTrafficLight({ M, w, h }) {
-  const g = new THREE.Group(); const x = w / 2 + .62, y = DOCK_H + 1.9;
-  g.add(box(.14, .36, .1, M.dark, x, y, .06)); const r = cyl(.045, .03, M.lampOff, x, y + .08, .12, 16); r.rotation.x = Math.PI / 2; const gr = cyl(.045, .03, M.green, x, y - .08, .12, 16); gr.rotation.x = Math.PI / 2; r.userData.dynamic = true; gr.userData.dynamic = true; g.add(r, gr);
+  // dock traffic light 934 beside the shelter frame, higher up and further out so the driver sees it in the mirror
+  const g = new THREE.Group(); const x = w / 2 + .92, y = DOCK_H + 2.5;
+  g.add(box(.22, .58, .14, M.dark, x, y, .08)); g.add(box(.26, .06, .22, M.dark, x, y + .32, .1));   // housing with a sun hood on top
+  const r = cyl(.075, .03, M.lampOff, x, y + .13, .16, 20); r.rotation.x = Math.PI / 2; const gr = cyl(.075, .03, M.green, x, y - .13, .16, 20); gr.rotation.x = Math.PI / 2; r.userData.dynamic = true; gr.userData.dynamic = true; g.add(r); g.add(gr);
+  g.add(box(.05, .05, .1, M.galv, x, y, .0));   // wall bracket
   const redOn = new THREE.MeshStandardMaterial({ color: 0xff2a2a, emissive: 0xff0000, emissiveIntensity: 1.6 });
   return { group: g, set: state => { r.material = state === 'red' ? redOn : M.lampOff; gr.material = state === 'green' ? M.green : M.lampOff; } };
 }
