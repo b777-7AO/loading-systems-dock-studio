@@ -804,6 +804,10 @@ export function buildWarehouse({ mats, st, studio = false }) {
     // dock edge plate
     const door = buildDoor({ M, st: { ...st, bayNo: i + 1, studio, stepDown }, w, h: h + stepDown }); bay.add(door.group); rigs.doors.push(door);
     if (stepDown && !studio) [-1, 1].forEach(sx => bay.add(box((w - stepW) / 2, .004, .07, M.black, sx * (stepW / 2 + (w - stepW) / 4), DOCK_H + .002, -WALL_T - .06, { shadow: false })));   // door slot in the concrete beside the slit
+    if (stepDown && !studio) {   // the notch through the wall is concrete, not facade panel: sill and side cheeks
+      bay.add(box(stepW + .02, .02, WALL_T + .02, M.plinth, 0, DOCK_H - stepDown + .01, -WALL_T / 2, { shadow: false }));
+      [-1, 1].forEach(sx => bay.add(box(.02, stepDown + .02, WALL_T + .02, M.plinth, sx * (stepW / 2 + .01), DOCK_H - stepDown / 2, -WALL_T / 2, { shadow: false })));
+    }
     if (st.leveller !== 'stepped') bay.add(box(w + .7, .14, .02, M.yellowStripe, 0, DOCK_H - .2, .07, { shadow: false }));   // yellow dock-edge marking (not on a stepped dock: the notch cuts through it)
     const truckKind = st.truck; const bedH = TRUCKS[truckKind] && truckKind !== 'none' ? TRUCKS[truckKind].bedH : null;
     const truckRearZ = bedH != null ? .34 + (TRUCKS[truckKind].doorFaceZ || 0) : null;
