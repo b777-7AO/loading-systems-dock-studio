@@ -68,7 +68,7 @@ export function createMaterials(renderer, manager, { mobile = false } = {}) {
     plinth: std({ ...pbr('hf_dockwall', 2.4), roughness: 1, color: 0xc4c5c1, normalScale: new THREE.Vector2(.8, .8) }),
     concrete: std({ ...pbr('concrete', 2.2), roughness: 1, color: 0xc7c8c4, lightMap: noiseTex(.8, 1, 12), lightMapIntensity: 1 }),
     floor: std({ ...pbr('hf_whfloor', 4.2), roughness: .6, color: 0xdcdcd8, normalScale: new THREE.Vector2(.4, .4), lightMap: noiseTex(.78, 1, 10), lightMapIntensity: 1 }),
-    asphalt: std({ ...pbr('hf_asphalt2', 7.5, false), roughness: .95, color: 0x9a9b9c, normalScale: new THREE.Vector2(.6, .6), lightMap: noiseTex(.7, 1, 16), lightMapIntensity: 1 }),
+    asphalt: std({ map: tx('hf_asphalt2_d.jpg', { srgb: true, tile: 7.5, mirror: false }), normalMap: tx('hf_asphalt2_n.jpg', { tile: 7.5, mirror: false }), roughness: 1, metalness: 0, envMapIntensity: .15, color: 0x8e8f90, normalScale: new THREE.Vector2(.45, .45), lightMap: noiseTex(.78, 1, 16), lightMapIntensity: 1 }),   // dry matte asphalt: no roughness map, no sky reflection
     pavers: std({ ...pbr('pavers', 2), roughness: 1 }),
     lawn: std({ map: tx('lawn_d.jpg', { srgb: true, tile: 2.6 }), normalMap: tx('lawn_n.jpg', { tile: 2.6 }), roughness: 1, lightMap: noiseTex(.62, 1, 18), lightMapIntensity: 1 }),
     hedge: std({ map: tx('hedge_d.jpg', { srgb: true, tile: 1.1 }), normalMap: tx('hedge_n.jpg', { tile: 1.1 }), roughness: 1 }),
