@@ -9,9 +9,9 @@ import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import * as C from './cfg/catalog.js?v=32';
+import * as C from './cfg/catalog.js?v=33';
 import { createMaterials, TEX } from './cfg/materials.js?v=31';
-import { buildWarehouse, buildStudio, dispose, DOCK_H, ease, registerParts, registerVehicles, mergeStatic, QUALITY } from './cfg/scene.js?v=79';
+import { buildWarehouse, buildStudio, dispose, DOCK_H, ease, registerParts, registerVehicles, mergeStatic, QUALITY, dockEnd } from './cfg/scene.js?v=80';
 
 const $ = id => document.getElementById(id);
 const q = new URLSearchParams(location.search);
@@ -148,7 +148,7 @@ function applyDocking(t, force = false) {
   // stepped dock: the vehicle docks with closed doors; they open into the recess (90°) only after the overhead door is open
   const stepped = state.leveller === 'stepped';
   const rearDoors = stepped ? ph(s, doorEnd(), .9) : ph(s, .27, 1.53);
-  r.trucks.forEach(tr => { const start = 31, end = .34; const z = start + (end - start) * arrive; const prev = tr.group.position.z; tr.group.position.z = z; tr.animate(prev - z); if (tr.doors) tr.doors(rearDoors, stepped ? Math.PI * .5 : Math.PI * 1.5); });
+  r.trucks.forEach(tr => { const start = 31, end = dockEnd(C.TRUCKS[state.truck]); const z = start + (end - start) * arrive; const prev = tr.group.position.z; tr.group.position.z = z; tr.animate(prev - z); if (tr.doors) tr.doors(rearDoors, stepped ? Math.PI * .5 : Math.PI * 1.5); });
   const doorV = manDoor ? manDoor.value : door, levV = manLev ? manLev.value : lev;
   r.restraints.forEach(x => x.animate(restr)); r.doors.forEach(x => x.animate(doorV)); r.shelters.forEach(x => x.animate(shel)); r.levellers.forEach(x => x.animate(levV, arrive >= .999 && state.truck !== 'none'));
   r.lights.forEach(x => x.setOn(doorV > .3)); r.traffic.forEach(x => x.set(restr > .5 ? 'red' : 'green'));

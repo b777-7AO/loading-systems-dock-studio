@@ -1,7 +1,7 @@
 /* Loading Systems · Dock Studio scene: warehouse with N loading bays, doors, dock levellers, shelters, bumpers, restraints, lights, trucks.
    Units metres. X along the facade, Y up, +Z = yard (outside). Yard level y = 0, warehouse floor y = DOCK_H. Facade front face at z = 0. */
 import * as THREE from 'three';
-import { DOORS, LEVELLERS, SHELTERS, BUMPERS, TRUCKS, WINDOWS, FULLVISION, LIFT, LIFT_620 } from './catalog.js?v=32';
+import { DOORS, LEVELLERS, SHELTERS, BUMPERS, TRUCKS, WINDOWS, FULLVISION, LIFT, LIFT_620 } from './catalog.js?v=33';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 
@@ -265,6 +265,7 @@ export function buildDoor({ M, st, w, h }) {
 }
 
 /* ---------------------------------------------------------------- Dock leveller with lip */
+export const dockEnd = T => (T && T.bedH != null && T.bedH < 1) ? .18 : .34;   // where the vehicle's rear stops: vans pull in closer to the dock edge
 export function buildLeveller({ M, st, w, bedH, truckRearZ = null }) {
   const g = new THREE.Group(); const L = LEVELLERS[st.leveller]; if (!L || st.leveller === 'none') return { group: g, animate: () => {} };
   const stepped = !!L.stepped; const G = 0;   // stepped dock: the leveller stays in its normal place; the step is the lower strip under the door, leveller-wide
@@ -285,7 +286,7 @@ export function buildLeveller({ M, st, w, bedH, truckRearZ = null }) {
   // pit frame angle flush in the floor
   { const fw = pw + gap + .04, fd = len + gap + .02, zc = -(len + gap) / 2 + .01;   // galvanised pit frame angle: a 4 cm rim round the pit (the pit itself stays open below the plate)
     [-1, 1].forEach(sx => pit.add(box(.04, .004, fd, M.galvDark, sx * (fw / 2 - .02), .003, zc, { shadow: false })));
-    pit.add(box(fw, .004, .04, M.galvDark, 0, .003, zc - fd / 2 + .02, { shadow: false })); if (!stepped) pit.add(box(fw, .004, .04, M.galvDark, 0, .003, zc + fd / 2 - .02, { shadow: false })); }
+    pit.add(box(fw, .004, .04, M.galvDark, 0, .003, zc - fd / 2 + .02, { shadow: false })); if (!stepped && !L.combi) pit.add(box(fw, .004, .04, M.galvDark, 0, .003, zc + fd / 2 - .02, { shadow: false })); }
   pit.add(box(pw + gap + .08, .012, .14, M.galvDark, 0, .006, -len - .03, { shadow: false }));   // rear hinge cover: closes the gap behind the plate, floor runs through
   const hinge = new THREE.Group(); hinge.name = 'leveller_hinge'; hinge.position.set(0, -.02, -len); hinge.userData.dynamic = true; pit.add(hinge);   // plate top 1 cm above the pit frame at rest (frame boxes sit at +.001..+.007), so the tread surface is always visible
   const plate = uvMetres(box(pw, .06, len, M.levellerPlate, 0, 0, len / 2)); hinge.add(plate);
@@ -302,8 +303,9 @@ export function buildLeveller({ M, st, w, bedH, truckRearZ = null }) {
   // galvanised toe guards (side skirts)
   [-1, 1].forEach(s => { const sk = box(.02, .7, len, M.galvDark, s * (pw / 2 - .01), -.36, len / 2, { shadow: false }); hinge.add(sk); });
   mergeStatic(hinge); g.add(pit);
-  const level = DOCK_H; const target = bedH == null ? DOCK_H : bedH + .02;
-  const ext = truckRearZ == null ? lipLen * .5 : Math.min(lipLen - .05, truckRearZ + .08 - plateEdgeZ);   // lip reach from the plate edge: 8 cm into the vehicle (capped by the lip length)
+  const level = DOCK_H; const target = bedH == null ? DOCK_H : (L.combi ? bedH + .02 : Math.max(bedH + .02, DOCK_H - .30));   // combi dock: sinks below floor level down to a van floor; standard levellers work to 300 mm below dock
+  const van = bedH != null && bedH < 1;
+  const ext = truckRearZ == null ? lipLen * .5 : Math.min(lipLen - .05, truckRearZ + (van ? .06 : .08) - plateEdgeZ);   // lip reach from the plate edge: 8 cm into the vehicle (capped by the lip length); van: only a short piece of the lip comes out
   function animate(t, docked = true) {
     const r = seg(t, 0, .45), o = seg(t, .45, .75), lo = seg(t, .75, 1);
     const upA = .16;
@@ -765,7 +767,7 @@ export function buildWarehouse({ mats, st, studio = false }) {
     [-1, 1].forEach(sx => g.add(box((bw - pw) / 2, DOCK_H, bd, M.plinth, sx * (pw / 2 + (bw - pw) / 4), DOCK_H / 2, zf - bd / 2)));
     const pe = stepDown ? -WALL_T - .12 : 0, pitBack = pe - ((st.levellerLen || 2500) / 1000 + .03), bk = zf - bd;   // pit ends 3 cm behind the plate's rear edge, measured from the plate edge (not from the block front)
     g.add(box(pw, DOCK_H, pitBack - bk, M.plinth, 0, DOCK_H / 2, (pitBack + bk) / 2));              // behind the pit: floor closed right up to the plate's rear hinge cover
-    const fh = DOCK_H - (stepDown ? .54 : .08), sw = stepDown ? stepW : pw;   /* over the leveller width the face stops 8 cm below the plate, as in the hall: the leveller's steel front edge forms the dock front, no concrete in front of it */                              // front strip (dock face): on a stepped dock open over the slit width down to the pit bottom (no floor in front of the leveller)
+    const fh = DOCK_H - (stepDown ? .54 : st.leveller === 'combi' ? .76 : .08), sw = stepDown ? stepW : pw;   /* over the leveller width the face stops 8 cm below the plate, as in the hall: the leveller's steel front edge forms the dock front, no concrete in front of it */                              // front strip (dock face): on a stepped dock open over the slit width down to the pit bottom (no floor in front of the leveller)
     g.add(box(sw, fh, .3, M.plinth, 0, fh / 2, zf + .15)); [-1, 1].forEach(sx => g.add(box((bw - sw) / 2, DOCK_H, .3, M.plinth, sx * (sw / 2 + (bw - sw) / 4), DOCK_H / 2, zf + .15)));
     g.add(box(pw, DOCK_H - .78, zf + .3 - pitBack, M.plinth, 0, (DOCK_H - .78) / 2, (zf + .3 + pitBack) / 2));   // under the pit
   } else {
@@ -775,6 +777,10 @@ export function buildWarehouse({ mats, st, studio = false }) {
     if (o.faceNotch) { const n = o.faceNotch;   // stepped dock: concrete face under the door, open only over the leveller-wide slit
       g.add(box(n.x, DOCK_H + .02, .06, M.plinth, ox + n.x / 2, (DOCK_H + .02) / 2, .03)); g.add(box(o.w - n.x - n.w, DOCK_H + .02, .06, M.plinth, ox + n.x + n.w + (o.w - n.x - n.w) / 2, (DOCK_H + .02) / 2, .03));
       g.add(box(n.w, DOCK_H - n.d, .06, M.plinth, ox + n.x + n.w / 2, (DOCK_H - n.d) / 2, .03)); }
+    else if (st.leveller === 'combi') {   // combi dock: no wall in front of the leveller, the pit is open to the yard down to the pit floor so the platform can sink below dock level
+      const pw = (st.levellerW || 2000) / 1000 + .04;
+      [-1, 1].forEach(sx => g.add(box((o.w - pw) / 2, DOCK_H + .02, .06, M.plinth, ox + o.w / 2 + sx * (pw / 2 + (o.w - pw) / 4), (DOCK_H + .02) / 2, .03)));
+      g.add(box(pw, DOCK_H - .76, .06, M.plinth, ox + o.w / 2, (DOCK_H - .76) / 2, .03)); }
     else if (st.leveller !== 'none') {   // leveller runs to the dock edge: the face is lowered over the plate width so the platform front shows at the edge
       const pw = (st.levellerW || 2000) / 1000 + .08, sx = (o.w - pw) / 2;
       g.add(box(sx, DOCK_H + .02, .06, M.plinth, ox + sx / 2, (DOCK_H + .02) / 2, .03)); g.add(box(sx, DOCK_H + .02, .06, M.plinth, ox + o.w - sx / 2, (DOCK_H + .02) / 2, .03));
@@ -839,7 +845,7 @@ export function buildWarehouse({ mats, st, studio = false }) {
     }
     if (st.leveller !== 'stepped') bay.add(box(w + .7, .14, .02, M.yellowStripe, 0, DOCK_H - .2, .07, { shadow: false }));   // yellow dock-edge marking (not on a stepped dock: the notch cuts through it)
     const truckKind = st.truck; const bedH = TRUCKS[truckKind] && truckKind !== 'none' ? TRUCKS[truckKind].bedH : null;
-    const truckRearZ = bedH != null ? .34 + (TRUCKS[truckKind].doorFaceZ || 0) : null;
+    const truckRearZ = bedH != null ? dockEnd(TRUCKS[truckKind]) + (TRUCKS[truckKind].doorFaceZ || 0) : null;
     const lev = buildLeveller({ M, st, w, bedH, truckRearZ }); bay.add(lev.group); rigs.levellers.push(lev);
     const sh = buildShelter({ M, st, w, h }); bay.add(sh.group); rigs.shelters.push(sh);
     if (st.leveller !== 'stepped') bay.add(buildBumpers({ M, st, w }));   // stepped dock: no bumpers in front of the dock
