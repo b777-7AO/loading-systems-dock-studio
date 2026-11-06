@@ -759,7 +759,7 @@ export function buildWarehouse({ mats, st, studio = false }) {
   if (studio) {
     // product studio: no hall, only the equipment on a concrete dock block (U-shaped round the leveller pit)
     // cut-out exactly the pit footprint (pit = plate + .02 each way, frame angle .04), measured from the plate edge at plateEdgeZ
-    const len = (st.levellerLen || 2500) / 1000 + .06, pw = (st.levellerW || 2000) / 1000 + .08, bw = w + 2.6, bd = len + 1.6, zf = -WALL_T - .12 + .03;
+    const len = (st.levellerLen || 2500) / 1000 + .06, pw = (st.levellerW || 2000) / 1000 + .08, bw = w + 2.6, bd = len + 1.6, zf = stepDown ? -WALL_T - .12 + .03 : -.24;   // block front face at z = .06 like the hall's dock face: the leveller's front edge is in line with the bay (stepped: pit starts behind the slit)
     [-1, 1].forEach(sx => g.add(box((bw - pw) / 2, DOCK_H, bd, M.plinth, sx * (pw / 2 + (bw - pw) / 4), DOCK_H / 2, zf - bd / 2)));
     g.add(box(pw, DOCK_H, bd - len, M.plinth, 0, DOCK_H / 2, zf - len - (bd - len) / 2));          // behind the pit
     const fh = DOCK_H - (stepDown ? .54 : 0), sw = stepDown ? stepW : pw;                              // front strip (dock face): on a stepped dock open over the slit width down to the pit bottom (no floor in front of the leveller)
