@@ -223,12 +223,13 @@ export function buildLeveller({ M, st, w, bedH, truckRearZ = null }) {
   // hazard marking across the lip hinge and on the lip, as on the 232NG / 233NG
   hinge.add(box(pw, .004, .14, M.hazard, 0, .032, len - .08, { shadow: false }));
   hinge.add(box(pw, .4, .08, M.levellerFrame, 0, -.24, len - .04));   // front beam
+  hinge.add(box(pw - .08, .026, .01, M.black, 0, .018, len + .002, { shadow: false }));   // lip slot in the front edge
   const cylm = cyl(.06, len * .6, M.levellerFrame, 0, -.3, len * .5, 10); cylm.rotation.x = Math.PI / 2 - .25; hinge.add(cylm);
   const rod = cyl(.035, len * .3, M.chrome, 0, -.1, len * .78, 10); rod.rotation.x = Math.PI / 2 - .25; hinge.add(rod);
   const lipPivot = new THREE.Group(); lipPivot.position.set(0, 0, len); lipPivot.userData.dynamic = true; hinge.add(lipPivot);
   let lip;
   if (L.lip === 'swing') { lip = box(pw - .1, .05, lipLen, M.levellerPlate, 0, 0, lipLen / 2); lipPivot.add(lip); lipPivot.add(box(pw - .1, .004, .08, M.hazard, 0, .028, lipLen - .04, { shadow: false })); lipPivot.rotation.x = Math.PI / 2 - .08; }
-  else { const body = lipLen + 1.2; lip = box(pw - .1, .045, body, M.levellerPlate, 0, .0035, -body / 2); lipPivot.add(lip); lip.position.z = 0; lip.add(box(pw - .1, .004, .08, M.hazard, 0, .0245, -.04, { shadow: false })); }   // telescopic lip: one rigid piece in the plane of the plate; its body runs 1.2 m further back inside the platform so it never looks detached
+  else { const body = lipLen + 1.2; lip = box(pw - .1, .02, body, M.levellerPlate, 0, .019, 0); lip.geometry.translate(0, 0, -body / 2); lipPivot.add(lip); lip.position.z = 0; lip.add(box(pw - .1, .003, .08, M.hazard, 0, .0115, -.04, { shadow: false })); }   // telescopic lip: thin 20 mm steel plate flush with the platform top, one rigid piece sliding out of a slot in the front edge; its body runs 1.2 m back inside the platform
   // galvanised toe guards (side skirts)
   [-1, 1].forEach(s => { const sk = box(.02, .7, len, M.galvDark, s * (pw / 2 - .01), -.36, len / 2, { shadow: false }); hinge.add(sk); });
   mergeStatic(hinge); g.add(pit);
@@ -512,7 +513,6 @@ export function buildWarehouse({ mats, st, studio = false }) {
   for (let i = 0; i < bays; i++) {
     const cx = bayX(i); const bay = new THREE.Group(); bay.position.x = cx; g.add(bay);
     // dock edge plate
-    bay.add(box(w + .4, .06, .3, M.galv, 0, DOCK_H - .13, .12, { shadow: false }));   // galvanised dock edge below the leveller level, the lip passes over it
     const door = buildDoor({ M, st: { ...st, bayNo: i + 1 }, w, h }); bay.add(door.group); rigs.doors.push(door);
     bay.add(box(w + .7, .14, .02, M.yellowStripe, 0, DOCK_H - .2, .07, { shadow: false }));   // yellow dock-edge marking
     const truckKind = st.truck; const bedH = TRUCKS[truckKind] && truckKind !== 'none' ? TRUCKS[truckKind].bedH : null;
