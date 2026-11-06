@@ -187,3 +187,11 @@
   .cfg-summary-actions { grid-template-columns: 1fr 1fr; }
 }
 @media (max-width: 400px) { .cfg-cards { grid-template-columns: repeat(2, 1fr); } .cfg-swatches { grid-template-columns: repeat(4, 1fr); } }
+
+/* interlock notice (door / leveller) */
+.cfg-notice { position: absolute; left: 50%; top: 70px; transform: translateX(-50%); z-index: 6; display: flex; align-items: flex-start; gap: .7rem; max-width: min(92%, 460px); background: #fff; border: 1px solid var(--line); border-left: 4px solid var(--red); border-radius: 3px; padding: .7rem .9rem; box-shadow: 0 8px 24px rgba(0,0,0,.14); font-size: .84rem; line-height: 1.35; color: #333; pointer-events: none; animation: cfgNoticeIn .25s ease-out; }
+.cfg-notice[hidden] { display: none; }
+.cfg-notice svg { width: 22px; height: 22px; flex: none; fill: none; stroke: var(--red); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; margin-top: 1px; }
+.cfg-notice strong { display: block; font-size: .72rem; text-transform: uppercase; letter-spacing: .08em; color: var(--red); margin-bottom: .15rem; }
+@keyframes cfgNoticeIn { from { opacity: 0; transform: translate(-50%, -8px); } to { opacity: 1; transform: translate(-50%, 0); } }
+@media (max-width: 900px) { .cfg-notice { top: 60px; font-size: .78rem; } }

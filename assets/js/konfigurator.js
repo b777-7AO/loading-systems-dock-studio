@@ -96,15 +96,16 @@ let docking = 0, dockTarget = 0, dockAnimStart = null, dockFrom = 0, camTween = 
 /* manual overrides for the door and the leveller (buttons next to the docking control): {from,to,start,dur,value,release} */
 let manDoor = null, manLev = null;
 const seqDoor = t => Math.max(0, Math.min(1, (t - .46) / .2)), seqLev = t => Math.max(0, Math.min(1, (t - .66) / .34));
-let hintTimer = null;
+let hintTimer = null, noticeTimer = null;
 function hint(msg) { $('dockLabel').textContent = msg; clearTimeout(hintTimer); hintTimer = setTimeout(() => applyDocking(docking), 2200); }
+function notice(title, text) { const n = $('cfgNotice'); $('cfgNoticeTitle').textContent = title; $('cfgNoticeText').textContent = text; n.hidden = false; clearTimeout(noticeTimer); noticeTimer = setTimeout(() => { n.hidden = true; }, 4200); }
 function manualToggle(which) {
   const doorNow = manDoor ? manDoor.value : seqDoor(docking), levNow = manLev ? manLev.value : seqLev(docking);
   const cur = which === 'door' ? doorNow : levNow;
   const to = cur > .5 ? 0 : 1;
   // interlock as on the real control: the leveller only moves with the door fully open, the door only closes with the leveller down
-  if (which === 'lev' && doorNow < .98) { hint('Erst das Tor öffnen'); return; }
-  if (which === 'door' && to === 0 && levNow > .02) { hint('Erst die Laderampe senken'); return; } const o = { from: cur, to, start: performance.now(), dur: which === 'door' ? 2600 : 3400, value: cur, release: false };
+  if (which === 'lev' && doorNow < .98) { hint('Erst das Tor öffnen'); notice('Verriegelung', 'Die Laderampe fährt nur bei geöffnetem Tor. Bitte zuerst das Tor öffnen.'); return; }
+  if (which === 'door' && to === 0 && levNow > .02) { hint('Erst die Laderampe senken'); notice('Verriegelung', 'Das Tor schließt nur bei abgesenkter Laderampe. Bitte zuerst die Laderampe senken.'); return; } const o = { from: cur, to, start: performance.now(), dur: which === 'door' ? 2600 : 3400, value: cur, release: false };
   if (which === 'door') manDoor = o; else manLev = o; dockAnimStart = null; updateManualButtons(); invalidate();
 }
 function updateManualButtons() {
