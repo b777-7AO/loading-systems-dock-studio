@@ -284,7 +284,7 @@ export function buildLeveller({ M, st, w, bedH, truckRearZ = null }) {
   const hinge = new THREE.Group(); hinge.position.set(0, -.02, -len); hinge.userData.dynamic = true; pit.add(hinge);   // plate top 1 cm above the pit frame at rest (frame boxes sit at +.001..+.007), so the tread surface is always visible
   const plate = uvMetres(box(pw, .06, len, M.levellerPlate, 0, 0, len / 2)); hinge.add(plate);
   // hazard marking across the lip hinge and on the lip, as on the 232NG / 233NG
-  hinge.add(box(pw, .004, .14, M.hazard, 0, .032, len - .08, { shadow: false }));
+  if (!stepped) hinge.add(box(pw, .004, .14, M.hazard, 0, .032, len - .08, { shadow: false }));   // no yellow marking on a stepped dock
   hinge.add(box(pw, .4, .08, M.levellerFrame, 0, -.24, len - .04));   // front beam
   hinge.add(box(pw - .08, .026, .01, M.black, 0, .018, len + .002, { shadow: false }));   // lip slot in the front edge
   const cylm = cyl(.06, len * .6, M.levellerFrame, 0, -.3, len * .5, 10); cylm.rotation.x = Math.PI / 2 - .25; hinge.add(cylm);
@@ -292,7 +292,7 @@ export function buildLeveller({ M, st, w, bedH, truckRearZ = null }) {
   const lipPivot = new THREE.Group(); lipPivot.position.set(0, 0, len); lipPivot.userData.dynamic = true; hinge.add(lipPivot);
   let lip;
   if (L.lip === 'swing') { lip = uvMetres(box(pw - .1, .05, lipLen, M.levellerPlate, 0, 0, lipLen / 2)); lipPivot.add(lip); lipPivot.add(box(pw - .1, .004, .08, M.hazard, 0, .028, lipLen - .04, { shadow: false })); lipPivot.rotation.x = Math.PI / 2 - .08; }
-  else { const body = Math.min(lipLen + 1.2, len - .1); lip = uvMetres(box(pw - .1, .02, body, M.levellerPlate, 0, .019, 0)); lip.geometry.translate(0, 0, -body / 2); lipPivot.add(lip); lip.position.z = 0; lip.add(box(pw - .1, .003, .08, M.hazard, 0, .0115, -.04, { shadow: false })); }   // telescopic lip: thin 20 mm steel plate flush with the platform top, one rigid piece sliding out of a slot in the front edge; its body runs 1.2 m back inside the platform
+  else { const body = Math.min(lipLen + 1.2, len - .1); lip = uvMetres(box(pw - .1, .02, body, M.levellerPlate, 0, .019, 0)); lip.geometry.translate(0, 0, -body / 2); lipPivot.add(lip); lip.position.z = 0; if (!stepped) lip.add(box(pw - .1, .003, .08, M.hazard, 0, .0115, -.04, { shadow: false })); }   // telescopic lip: thin 20 mm steel plate flush with the platform top, one rigid piece sliding out of a slot in the front edge; its body runs 1.2 m back inside the platform
   // galvanised toe guards (side skirts)
   [-1, 1].forEach(s => { const sk = box(.02, .7, len, M.galvDark, s * (pw / 2 - .01), -.36, len / 2, { shadow: false }); hinge.add(sk); });
   mergeStatic(hinge); g.add(pit);
