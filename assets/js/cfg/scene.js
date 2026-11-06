@@ -211,13 +211,14 @@ export function buildLeveller({ M, st, w, bedH, truckRearZ = null }) {
   const g = new THREE.Group(); const L = LEVELLERS[st.leveller]; if (!L || st.leveller === 'none') return { group: g, animate: () => {} };
   const len = (st.levellerLen || 2500) / 1000, pw = (st.levellerW || 2000) / 1000; const lipLen = L.lipLen;
   // pit box behind the facade, plate hinged at the rear
-  const pit = new THREE.Group(); pit.position.set(0, DOCK_H, 0);   // plate front edge flush with the dock face
+  const plateEdgeZ = -WALL_T - .12;   // plate front edge 6 cm behind the door leaf (leaf at -WALL_T-.06): the door closes in front of the retracted lip
+  const pit = new THREE.Group(); pit.position.set(0, DOCK_H, plateEdgeZ);
   pit.add(box(pw + .3, .02, len + .3, M.levellerFrame, 0, -.74, -(len + .3) / 2, { shadow: false }));   // pit floor
   [-1, 1].forEach(s => pit.add(box(.15, .74, len + .3, M.plinth, s * (pw / 2 + .075), -.37, -(len + .3) / 2)));
   pit.add(box(pw + .3, .74, .15, M.plinth, 0, -.37, -(len + .3) + .075));
   // pit frame angle flush in the floor
   pit.add(box(pw + .3, .004, len + .3, M.galvDark, 0, .003, -(len + .3) / 2 + .0, { shadow: false })); pit.add(box(pw + .14, .006, len + .14, M.dark, 0, .004, -(len + .3) / 2 + .0, { shadow: false }));
-  const hinge = new THREE.Group(); hinge.position.set(0, .012, -len); hinge.userData.dynamic = true; pit.add(hinge);
+  const hinge = new THREE.Group(); hinge.position.set(0, -.03, -len); hinge.userData.dynamic = true; pit.add(hinge);   // plate top flush with the hall floor at rest
   const plate = box(pw, .06, len, M.levellerPlate, 0, 0, len / 2); hinge.add(plate);
   // hazard marking across the lip hinge and on the lip, as on the 232NG / 233NG
   hinge.add(box(pw, .004, .14, M.hazard, 0, .032, len - .08, { shadow: false }));
@@ -232,7 +233,7 @@ export function buildLeveller({ M, st, w, bedH, truckRearZ = null }) {
   [-1, 1].forEach(s => { const sk = box(.02, .7, len, M.galvDark, s * (pw / 2 - .01), -.36, len / 2, { shadow: false }); hinge.add(sk); });
   mergeStatic(hinge); g.add(pit);
   const level = DOCK_H; const target = bedH == null ? DOCK_H : bedH + .02;
-  const ext = truckRearZ == null ? lipLen * .5 : Math.min(lipLen - .05, truckRearZ + .15);   // lip reach: 15 cm into the vehicle
+  const ext = truckRearZ == null ? lipLen * .5 : Math.min(lipLen - .05, truckRearZ + .15 - plateEdgeZ);   // lip reach from the plate edge: 15 cm into the vehicle (capped by the lip length)
   function animate(t) {
     const r = seg(t, 0, .45), o = seg(t, .45, .75), lo = seg(t, .75, 1);
     const upA = .16;
