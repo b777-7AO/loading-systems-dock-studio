@@ -314,7 +314,7 @@ export function buildShelter({ M, st, w, h }) {
     fb.add(box(W, .1, depth, fr, 0, y0 + Hs - .05, depth / 2));                                   // top plate
     [-1, 1].forEach(s => fb.add(box(.1, Hs, depth, fr, s * (W / 2 - .05), y0 + Hs / 2, depth / 2)));   // side walls
     [-1, 1].forEach(s => fb.add(box(side + .05, Hs, .04, fr, s * (W / 2 - side / 2 - .02), y0 + Hs / 2, .02))); fb.add(box(W, top + .05, .04, fr, 0, y0 + Hs - top / 2, .02));   // closed back ring against the facade (opening stays free)
-    fb.add(box(W + .12, .05, depth + .12, fr, 0, y0 + Hs + .02, depth / 2 - .04));                    // roof cover
+    fb.add(box(W, .05, depth + .06, fr, 0, y0 + Hs + .02, depth / 2 - .01));                          // roof cover, same width as the frame
     // curtains: hanging section (photo texture) + end section that folds 90° to lie along the vehicle when it docks
     const curtain = (len, ov, mat, mkA, mkB) => { const a = Math.max(.05, len - ov); const pv = new THREE.Group(); pv.userData.dynamic = true; pv.add(mkA(a)); const sub = new THREE.Group(); sub.userData.dynamic = true; pv.add(sub); if (ov > .01) sub.add(mkB(ov)); return { pv, sub }; };
     const sideC = [-1, 1].map(s => { const c = curtain(side, ovS, null,
