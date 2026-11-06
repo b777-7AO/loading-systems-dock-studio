@@ -34,9 +34,11 @@
 
 .cfg-dock { display: flex; align-items: center; gap: .4rem; background: rgba(255,255,255,.94); border: 1px solid var(--line); border-radius: 3px; padding: .25rem .35rem .25rem .6rem; backdrop-filter: blur(6px); }
 .cfg-dock-row { display: flex; align-items: center; gap: .45rem; }
-.cfg-dock-label { font-size: .6rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--red); min-width: 96px; }
-.cfg-dock input[type=range] { width: 70px; accent-color: var(--red); }
+.cfg-dock-label { font-size: .58rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--red); min-width: 84px; }
+.cfg-dock input[type=range] { width: 56px; accent-color: var(--red); }
 .cfg-dock .btn-sm { padding: .32rem .55rem; font-size: .68rem; min-height: 30px; white-space: nowrap; }
+.cfg-dock .btn-primary.btn-sm { padding: .45rem .8rem; font-size: .74rem; min-height: 36px; }
+.cfg-dock .cfg-manual { padding: .5rem .9rem; font-size: .76rem; min-height: 38px; font-weight: 700; } .cfg-dock .cfg-manual svg { width: 17px; height: 17px; }
 .cfg-dock-sep { width: 1px; height: 22px; background: var(--line); margin: 0 .15rem; }
 .cfg-dock .cfg-manual.is-on { background: #333; color: #fff; border-color: #333; }
 .cfg-save span { display: inline; }
@@ -178,7 +180,7 @@
   .cfg-dock { padding: .25rem .3rem .25rem .6rem; gap: .4rem; } .cfg-dock-row { flex: 1; min-width: 0; flex-direction: row; align-items: center; gap: .5rem; }
   .cfg-dock-label { font-size: .7rem; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 34vw; } .cfg-dock input[type=range] { flex: 1; min-width: 60px; }
   .cfg-save { display: none; }
-  .cfg-dock .btn-sm { padding: .45rem .55rem; font-size: .7rem; white-space: nowrap; min-height: 38px; } .cfg-dock .btn svg { width: 14px; height: 14px; } .cfg-dock .cfg-manual span { display: none; } .cfg-dock-sep { display: none; }
+  .cfg-dock .btn-sm { padding: .45rem .55rem; font-size: .7rem; white-space: nowrap; min-height: 38px; } .cfg-dock .btn svg { width: 14px; height: 14px; } .cfg-dock .cfg-manual { padding: .45rem .6rem; font-size: .68rem; } .cfg-dock-sep { display: none; } .cfg-dock-label { max-width: 22vw; } .cfg-dock input[type=range] { min-width: 40px; }
   .cfg-save span { display: none; } .cfg-save { padding: .55rem .6rem; }
   .cfg-hint-overlay { bottom: auto; top: 62px; font-size: .78rem; }
   .cfg-cards { grid-template-columns: repeat(3, 1fr); } .cfg-card span strong { font-size: .72rem; }
