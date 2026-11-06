@@ -96,7 +96,17 @@ let wh = null, studioGroup = null, dims = {};
 let docking = 0, dockTarget = 0, dockAnimStart = null, dockFrom = 0, camTween = null, pendingLimits = null;
 /* manual overrides for the door and the leveller (buttons next to the docking control): {from,to,start,dur,value,release} */
 let manDoor = null, manLev = null;
-const seqDoor = t => Math.max(0, Math.min(1, (t - .46) / .2)), seqLev = t => state.leveller === 'stepped' ? Math.max(0, Math.min(1, (t - .76) / .24)) : Math.max(0, Math.min(1, (t - .66) / .34));
+/* docking timeline in seconds (base 9 s). Ordinary sectional doors (601, Dock Door) open at half the speed of the high-speed
+   620NG / 640PR: their door phase takes twice as long and everything after it shifts back. */
+const DOOR_BASE = 1.8;
+const slowDoor = () => { const d = C.DOORS[state.door]; return !!d && d.kind === 'sectional' && d.priced !== 'hs620'; };
+const doorDur = () => DOOR_BASE * (slowDoor() ? 2 : 1);
+const seqDur = () => 9 + (doorDur() - DOOR_BASE);                      // total length in seconds
+const T = t => t * seqDur();                                            // slider position -> seconds
+const ph = (s, a, len) => Math.max(0, Math.min(1, (s - a) / len));      // phase helper
+const seqDoor = t => ph(T(t), 4.14, doorDur());
+const doorEnd = () => 4.14 + doorDur();
+const seqLev = t => state.leveller === 'stepped' ? ph(T(t), doorEnd() + .9, seqDur() - doorEnd() - .9) : ph(T(t), doorEnd(), seqDur() - doorEnd());
 let hintTimer = null, noticeTimer = null;
 function hint(msg) { $('dockLabel').textContent = msg; clearTimeout(hintTimer); hintTimer = setTimeout(() => applyDocking(docking), 2200); }
 function notice(title, text) { const n = $('cfgNotice'); $('cfgNoticeTitle').textContent = title; $('cfgNoticeText').textContent = text; n.hidden = false; clearTimeout(noticeTimer); noticeTimer = setTimeout(() => { n.hidden = true; }, 4200); }
@@ -106,7 +116,7 @@ function manualToggle(which) {
   const to = cur > .5 ? 0 : 1;
   // interlock as on the real control: the leveller only moves with the door fully open, the door only closes with the leveller down
   if (which === 'lev' && doorNow < .98) { hint('Erst das Tor öffnen'); notice('Verriegelung', 'Die Laderampe fährt nur bei geöffnetem Tor. Bitte zuerst das Tor öffnen.'); return; }
-  if (which === 'door' && to === 0 && levNow > .02) { hint('Erst die Laderampe senken'); notice('Verriegelung', 'Das Tor schließt nur bei abgesenkter Laderampe. Bitte zuerst die Laderampe senken.'); return; } const o = { from: cur, to, start: performance.now(), dur: which === 'door' ? 2600 : 3400, value: cur, release: false };
+  if (which === 'door' && to === 0 && levNow > .02) { hint('Erst die Laderampe senken'); notice('Verriegelung', 'Das Tor schließt nur bei abgesenkter Laderampe. Bitte zuerst die Laderampe senken.'); return; } const o = { from: cur, to, start: performance.now(), dur: which === 'door' ? (slowDoor() ? 5200 : 2600) : 3400, value: cur, release: false };
   if (which === 'door') manDoor = o; else manLev = o; dockAnimStart = null; updateManualButtons(); invalidate();
 }
 function updateManualButtons() {
@@ -128,16 +138,16 @@ function buildWorld() {
 /* docking sequence phases */
 function applyDocking(t, force = false) {
   if (!wh) return; const r = wh.rigs;
-  const arrive = ease(Math.min(1, t / .38)); const restr = Math.max(0, Math.min(1, (t - .36) / .12)); const door = seqDoor(t); const shel = Math.max(0, Math.min(1, (t - .31) / .07)); /* curtains fold while the vehicle pushes into the shelter */ const lev = seqLev(t);
+  const s = T(t); const arrive = ease(Math.min(1, s / 3.42)); const restr = ph(s, 3.24, 1.08); const door = seqDoor(t); const shel = ph(s, 2.79, .63); /* curtains fold while the vehicle pushes into the shelter */ const lev = seqLev(t);
   // stepped dock: the vehicle docks with closed doors; they open into the recess (90°) only after the overhead door is open
   const stepped = state.leveller === 'stepped';
-  const rearDoors = stepped ? Math.max(0, Math.min(1, (t - .66) / .1)) : Math.max(0, Math.min(1, (t - .03) / .17));
+  const rearDoors = stepped ? ph(s, doorEnd(), .9) : ph(s, .27, 1.53);
   r.trucks.forEach(tr => { const start = 31, end = .34; const z = start + (end - start) * arrive; const prev = tr.group.position.z; tr.group.position.z = z; tr.animate(prev - z); if (tr.doors) tr.doors(rearDoors, stepped ? Math.PI * .5 : Math.PI * 1.5); });
   const doorV = manDoor ? manDoor.value : door, levV = manLev ? manLev.value : lev;
   r.restraints.forEach(x => x.animate(restr)); r.doors.forEach(x => x.animate(doorV)); r.shelters.forEach(x => x.animate(shel)); r.levellers.forEach(x => x.animate(levV));
   r.lights.forEach(x => x.setOn(doorV > .3)); r.traffic.forEach(x => x.set(restr > .5 ? 'red' : 'green'));
   updateManualButtons();
-  $('dockLabel').textContent = t < .05 ? 'Dock frei' : t < .38 ? 'Lkw fährt an' : t < .48 ? 'Wegfahrsicherung aktiv' : t < .68 ? 'Tor öffnet' : t < .98 ? 'Überladebrücke fährt auf' : 'Verladung läuft';
+  $('dockLabel').textContent = s < .45 ? 'Dock frei' : s < 3.42 ? 'Lkw fährt an' : s < 4.32 ? 'Wegfahrsicherung aktiv' : s < doorEnd() + .2 ? 'Tor öffnet' : t < .98 ? 'Überladebrücke fährt auf' : 'Verladung läuft';
   invalidate();
 }
 
@@ -221,7 +231,7 @@ function loop(now) {
   requestAnimationFrame(loop);
   if (document.hidden) return;
   if (camTween) { const k = Math.min(1, (now - camTween.start) / camTween.dur), e = ease(k); camera.position.lerpVectors(camTween.from, camTween.to, e); controls.target.lerpVectors(camTween.fromT, camTween.toT, e); if (k >= 1) { camTween = null; if (pendingLimits) { controls.minDistance = pendingLimits.dist[0]; controls.maxDistance = pendingLimits.dist[1]; controls.minPolarAngle = pendingLimits.polar; pendingLimits = null; } } dirty = true; }
-  if (dockAnimStart !== null) { const k = Math.min(1, (now - dockAnimStart) / 9000); docking = dockFrom + (dockTarget - dockFrom) * k; applyDocking(docking); $('dockRange').value = Math.round(docking * 100); if (k >= 1) dockAnimStart = null; }
+  if (dockAnimStart !== null) { const k = Math.min(1, (now - dockAnimStart) / (seqDur() * 1000)); docking = dockFrom + (dockTarget - dockFrom) * k; applyDocking(docking); $('dockRange').value = Math.round(docking * 100); if (k >= 1) dockAnimStart = null; }
   let manBusy = false;
   [['door', manDoor], ['lev', manLev]].forEach(([w, o]) => { if (!o) return; const k = Math.min(1, (now - o.start) / o.dur); o.value = o.from + (o.to - o.from) * ease(k); manBusy = true;
     if (k >= 1) { if (o.release) { if (w === 'door') manDoor = null; else manLev = null; } else o.done = true; } });
