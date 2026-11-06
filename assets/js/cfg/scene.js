@@ -228,7 +228,7 @@ export function buildLeveller({ M, st, w, bedH, truckRearZ = null }) {
   const lipPivot = new THREE.Group(); lipPivot.position.set(0, 0, len); lipPivot.userData.dynamic = true; hinge.add(lipPivot);
   let lip;
   if (L.lip === 'swing') { lip = box(pw - .1, .05, lipLen, M.levellerPlate, 0, 0, lipLen / 2); lipPivot.add(lip); lipPivot.add(box(pw - .1, .004, .08, M.hazard, 0, .028, lipLen - .04, { shadow: false })); lipPivot.rotation.x = Math.PI / 2 - .08; }
-  else { lip = box(pw - .1, .045, lipLen, M.levellerPlate, 0, -.002, -lipLen / 2); lipPivot.add(lip); lip.position.z = 0; lip.add(box(pw - .1, .004, .08, M.hazard, 0, .025, -.04, { shadow: false })); }   // telescopic lip stored inside the plate, front flush with the edge
+  else { lip = box(pw - .1, .045, lipLen, M.levellerPlate, 0, .0035, -lipLen / 2); lipPivot.add(lip); lip.position.z = 0; lip.add(box(pw - .1, .004, .08, M.hazard, 0, .0245, -.04, { shadow: false })); }   // telescopic lip: one rigid piece in the plane of the plate, stored inside it, top 4 mm below the plate surface
   // galvanised toe guards (side skirts)
   [-1, 1].forEach(s => { const sk = box(.02, .7, len, M.galvDark, s * (pw / 2 - .01), -.36, len / 2, { shadow: false }); hinge.add(sk); });
   mergeStatic(hinge); g.add(pit);
@@ -237,10 +237,10 @@ export function buildLeveller({ M, st, w, bedH, truckRearZ = null }) {
   function animate(t) {
     const r = seg(t, 0, .45), o = seg(t, .45, .75), lo = seg(t, .75, 1);
     const upA = .16;
-    const dh = target - level; const downA = Math.atan2(dh, len);
+    const dh = target - level; const downA = Math.atan2(dh, L.lip === 'swing' ? len : len + ext);   // telescopic: the lip tip (plate + extension) rests on the vehicle floor
     hinge.rotation.x = -(upA * ease(r)) + (upA - downA) * ease(lo);
     if (L.lip === 'swing') lipPivot.rotation.x = (Math.PI / 2 - .08) * (1 - ease(o)) + (-hinge.rotation.x) * ease(lo);
-    else { lip.position.z = ext * ease(o); lipPivot.rotation.x = (-hinge.rotation.x) * ease(lo); }
+    else { lip.position.z = ext * ease(o); lipPivot.rotation.x = 0; }   // no articulation: the lip extends and retracts in line with the platform
   }
   return { group: g, animate };
 }
