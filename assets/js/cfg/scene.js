@@ -784,7 +784,7 @@ export function buildWarehouse({ mats, st, studio = false }) {
     const cx = bayX(i); const bay = new THREE.Group(); bay.position.x = cx; g.add(bay);
     // dock edge plate
     const door = buildDoor({ M, st: { ...st, bayNo: i + 1, studio, stepDown, stepW }, w, h }); bay.add(door.group); rigs.doors.push(door);
-    bay.add(box(w + .7, .14, .02, M.yellowStripe, 0, DOCK_H - .2, .07, { shadow: false }));   // yellow dock-edge marking
+    if (st.leveller !== 'stepped') bay.add(box(w + .7, .14, .02, M.yellowStripe, 0, DOCK_H - .2, .07, { shadow: false }));   // yellow dock-edge marking (not on a stepped dock: the notch cuts through it)
     const truckKind = st.truck; const bedH = TRUCKS[truckKind] && truckKind !== 'none' ? TRUCKS[truckKind].bedH : null;
     const truckRearZ = bedH != null ? .34 + (TRUCKS[truckKind].doorFaceZ || 0) : null;
     const lev = buildLeveller({ M, st, w, bedH, truckRearZ }); bay.add(lev.group); rigs.levellers.push(lev);
