@@ -104,8 +104,8 @@ function manualToggle(which) {
 function updateManualButtons() {
   const d = manDoor ? manDoor.to : seqDoor(docking), l = manLev ? manLev.to : seqLev(docking);
   const db = $('doorBtn'), lb = $('levBtn'); if (!db || !lb) return;
-  db.querySelector('span').textContent = d > .5 ? 'Tor schließen' : 'Tor öffnen'; db.classList.toggle('is-on', d > .5);
-  lb.querySelector('span').textContent = l > .5 ? 'Brücke senken' : 'Brücke heben'; lb.classList.toggle('is-on', l > .5);
+  db.querySelector('span').textContent = d > .5 ? 'Tor schließen' : 'Tor auf'; db.classList.toggle('is-on', d > .5);
+  lb.querySelector('span').textContent = l > .5 ? 'Laderampe senken' : 'Laderampe heben'; lb.classList.toggle('is-on', l > .5);
 }
 function buildWorld() {
   if (wh) { world.remove(wh.group); dispose(wh.group); wh = null; } if (studioGroup) { world.remove(studioGroup); dispose(studioGroup); studioGroup = null; }
@@ -161,7 +161,7 @@ function setMode(mode) {
 function setDock(open) { dockTarget = open ? 1 : 0; dockFrom = docking; dockAnimStart = performance.now();
   // hand manual overrides back to the sequence: blend from the manual state to what the sequence expects at the current position
   if (manDoor) manDoor = { from: manDoor.value, to: seqDoor(docking), start: performance.now(), dur: 1200, value: manDoor.value, release: true };
-  if (manLev) manLev = { from: manLev.value, to: seqLev(docking), start: performance.now(), dur: 1200, value: manLev.value, release: true }; const b = $('dockBtn'); b.querySelector('span').textContent = open ? 'Lkw abfahren' : 'Lkw andocken'; b.classList.toggle('is-open', open); }
+  if (manLev) manLev = { from: manLev.value, to: seqLev(docking), start: performance.now(), dur: 1200, value: manLev.value, release: true }; const b = $('dockBtn'); b.querySelector('span').textContent = open ? 'Abfahren' : 'Andocken'; b.classList.toggle('is-open', open); }
 
 /* ------------------------------------------------------------------ Mobile bottom sheet */
 const SHEET = { peek: 0, half: 0, full: 0 }; let sheetState = 'half';
@@ -368,7 +368,7 @@ sizeInput('inpW', 'w'); sizeInput('inpH', 'h');
 $('resetBtn').addEventListener('click', () => { history.replaceState(null, '', location.pathname); location.reload(); });
 $('dockBtn').addEventListener('click', () => { setDock(dockTarget === 0); if (mobile && sheetState !== 'peek') setSheet('peek'); });
 $('doorBtn').addEventListener('click', () => manualToggle('door')); $('levBtn').addEventListener('click', () => manualToggle('lev'));
-$('dockRange').addEventListener('input', e => { dockAnimStart = null; manDoor = manLev = null; updateManualButtons(); docking = dockTarget = e.target.value / 100; applyDocking(docking); $('dockBtn').querySelector('span').textContent = docking > .5 ? 'Lkw abfahren' : 'Lkw andocken'; });
+$('dockRange').addEventListener('input', e => { dockAnimStart = null; manDoor = manLev = null; updateManualButtons(); docking = dockTarget = e.target.value / 100; applyDocking(docking); $('dockBtn').querySelector('span').textContent = docking > .5 ? 'Abfahren' : 'Andocken'; });
 document.querySelectorAll('.cfg-views button').forEach(b => b.addEventListener('click', () => { goView(b.dataset.view); if (mobile && sheetState !== 'peek') setSheet('peek'); }));
 document.querySelectorAll('.cfg-tab').forEach(t => t.addEventListener('click', () => setMode(t.dataset.mode)));
 document.querySelectorAll('.cfg-step-head').forEach(h => h.addEventListener('click', () => h.parentElement.classList.toggle('is-collapsed')));
@@ -382,7 +382,7 @@ window.__cfg = { camera, controls, state, scene, world, renderer, dims: () => di
 function start() {
   setSheet('peek', false);
   buildWorld(); renderUI(); setMode(state.mode === 'studio' ? 'studio' : 'yard');
-  if (q.get('dock') === '1') { docking = dockTarget = 1; applyDocking(1); $('dockRange').value = 100; $('dockBtn').querySelector('span').textContent = 'Lkw abfahren'; }
+  if (q.get('dock') === '1') { docking = dockTarget = 1; applyDocking(1); $('dockRange').value = 100; $('dockBtn').querySelector('span').textContent = 'Abfahren'; }
   goView(q.get('view') || (state.mode === 'studio' ? 'studio' : mobile ? 'bay' : 'yard'), true);
   history.replaceState(null, '', location.pathname + location.search + hash());
   (async () => { try { await renderer.compileAsync(scene, camera); } catch (e) { } loop(performance.now()); })();
