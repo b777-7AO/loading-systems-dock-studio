@@ -354,7 +354,7 @@ $('cfgHint').querySelector('span').textContent = coarse ? 'Ein Finger dreht, zwe
 document.addEventListener('visibilitychange', () => { if (!document.hidden) invalidate(); });
 
 /* ------------------------------------------------------------------ Go */
-window.__cfg = { camera, controls, state, scene, world, renderer, dims: () => dims, update, setMode, goView, setDock, applyDocking, setSheet, invalidate, THREE, price: priceDoor };
+window.__cfg = { camera, controls, state, scene, world, renderer, dims: () => dims, update, setMode, goView, setDock, applyDocking, setSheet, invalidate, THREE, price: priceDoor, stopCam: () => { camTween = null; } };
 function start() {
   setSheet('peek', false);
   buildWorld(); renderUI(); setMode(state.mode === 'studio' ? 'studio' : 'yard');

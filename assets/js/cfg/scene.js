@@ -207,12 +207,21 @@ export function buildDoor({ M, st, w, h }) {
     [-1, 1].forEach(s => {
       const tg = trackGeometry({ Ht, R, Rr, zo, horizLen, vertical, mirror: s < 0 }); const tm = new THREE.Mesh(tg, trackMat); tm.position.set(s * tx, 0, zL); tm.castShadow = true; tm.receiveShadow = true; g.add(tm);
       if (heavy) g.add(box(.14, Ht + .3, .16, M.galv, s * (w / 2 + .16), (Ht + .3) / 2, zL - .06));   // 620NG self-supporting columns outside the tracks
-      else { g.add(box(.05, Ht, .004, M.galv, s * (tx + .02), Ht / 2, -WALL_T - .002, { shadow: false })); g.add(box(.004, Ht, .07, M.galv, s * (tx + .045), Ht / 2, -WALL_T - .035, { shadow: false })); }   // wall angle 50 x 70
-      if (!vertical) for (let k = 0; k <= 2; k++) { const zk = zL - R - .3 - k * (horizLen - .6) / 2; g.add(box(.04, .9, .04, M.galv, s * (tx + .02), Ht + Rr + .5, zk, { shadow: false })); g.add(box(.08, .04, .3, M.galv, s * tx, Ht + Rr + .07, zk, { shadow: false })); }   // hangers from the ceiling
+      if (!vertical) for (let k = 0; k <= 2; k++) { const zk = zL - R - .3 - k * (horizLen - .6) / 2; const hh = HALL_H - (Ht + Rr + .05); g.add(box(.04, hh, .04, M.galv, s * (tx + .02), Ht + Rr + .05 + hh / 2, zk, { shadow: false })); g.add(box(.08, .04, .3, M.galv, s * tx, Ht + Rr + .07, zk, { shadow: false })); }   // hanger angles up to the roof structure
     });
     // torsion shaft with spring packs and cable drums above the opening (inside)
-    g.add(cyl(.028, w + .4, M.galv, 0, Ht + .2, zL - .18, 12).rotateZ(Math.PI / 2));
-    [-1, 1].forEach(s => { g.add(cyl(.085, Math.min(1.2, w * .3), M.dark, s * (w / 4), Ht + .2, zL - .18, 14).rotateZ(Math.PI / 2)); g.add(cyl(.09, .1, M.galvDark, s * (w / 2 + .02), Ht + .2, zL - .18, 16).rotateZ(Math.PI / 2)); g.add(box(.16, .34, .12, M.galv, s * (w / 2 + .1), Ht + .1, zL - .18)); });
+    // torsion spring assembly as on a real sectional door: solid shaft on end bearing brackets, centre spring-anchor bracket on the wall,
+    // one coil spring each side of it with aluminium stationary / winding cones, cable drums at the ends with lifting cables down to the bottom panel
+    const sy = Ht + .2, sz = zL - .18, arm = -WALL_T - sz;   // shaft axis and bracket reach from the wall
+    g.add(cyl(.0127, w + .5, M.galv, 0, sy, sz, 10).rotateZ(Math.PI / 2));
+    const bracket = x => { g.add(box(.06, .26, .004, M.galv, x, sy - .03, -WALL_T - .002, { shadow: false })); g.add(box(.06, .004, arm, M.galv, x, sy + .045, -WALL_T - arm / 2)); g.add(box(.004, .09, arm, M.galv, x + .03, sy, -WALL_T - arm / 2, { shadow: false }));
+      g.add(cyl(.024, .035, M.galvDark, x, sy, sz, 14).rotateZ(Math.PI / 2)); };   // bearing hub
+    bracket(0); [-1, 1].forEach(s => bracket(s * (w / 2 + .12)));
+    const Ls = Math.min(1.0, w * .28);
+    [-1, 1].forEach(s => { const x0 = s * (.06 + Ls / 2); g.add(cyl(.04, Ls, M.springCoil, x0, sy, sz, 16).rotateZ(Math.PI / 2));
+      g.add(cyl(.046, .04, M.alu, s * .07, sy, sz, 16).rotateZ(Math.PI / 2)); g.add(cyl(.046, .05, M.alu, s * (.06 + Ls + .02), sy, sz, 16).rotateZ(Math.PI / 2)); });   // cones
+    [-1, 1].forEach(s => { const dx = s * (w / 2 + .06); g.add(cyl(.062, .085, M.galvDark, dx, sy, sz, 20).rotateZ(Math.PI / 2)); for (let k = -3; k <= 3; k++) g.add(cyl(.064, .004, M.dark, dx + k * .011, sy, sz, 20, { shadow: false }).rotateZ(Math.PI / 2));   // grooved cable drum
+      g.add(cyl(.0025, sy - .1, M.galvDark, dx, (sy - .1) / 2 + .1, sz + .02, 6, { shadow: false })); });   // lifting cable down to the bottom bracket
     if (d.motor || st.operation === 'motor') { const mu = part('motor_unit', w / 2 + .36, Ht + .2, zL - .18, { rotX: -Math.PI / 2 }); if (mu) g.add(mu); else g.add(box(.26, .3, .36, M.galv, w / 2 + .32, Ht + .2, zL - .18)); }
     else { g.add(cyl(.004, Ht - .6, M.dark, -w / 2 - .02, Ht / 2 + .2, zL - .1, 6, { shadow: false })); }   // pull rope
     const smax = Ht - parts[0].y0 + R * Math.PI / 2 + .12;

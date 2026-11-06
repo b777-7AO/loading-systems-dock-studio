@@ -16,6 +16,11 @@ export function createMaterials(renderer, manager, { mobile = false } = {}) {
   const std = o => new THREE.MeshStandardMaterial(o);
   const phys = o => new THREE.MeshPhysicalMaterial(o);
   const noiseCache = new Map();
+  function coilTex() {   // diagonal winding stripes for torsion springs (wrapped round a cylinder along its axis)
+    const c = document.createElement('canvas'); c.width = 256; c.height = 32; const ctx = c.getContext('2d'); ctx.fillStyle = '#1e2023'; ctx.fillRect(0, 0, 256, 32);
+    ctx.strokeStyle = '#9a9ea2'; ctx.lineWidth = 4; for (let x = -32; x < 288; x += 12) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x + 6, 32); ctx.stroke(); }
+    const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(8, 1); t.colorSpace = THREE.SRGBColorSpace; return t;
+  }
   function noiseTex(lo, hi, metres = 14) {
     const key = lo + '|' + hi + '|' + metres; if (noiseCache.has(key)) return noiseCache.get(key);
     const N = 256, c = document.createElement('canvas'); c.width = c.height = N; const ctx = c.getContext('2d'); const img = ctx.createImageData(N, N), g = 8, grid = []; let seed = 11 + metres;
@@ -81,6 +86,7 @@ export function createMaterials(renderer, manager, { mobile = false } = {}) {
     kerb: std({ color: 0xbdbdb8, roughness: .9 }),
     roadLine: std({ color: 0xe8e8e2, roughness: .8 }),
     poleGalv: std({ color: 0xb9bdc0, metalness: .7, roughness: .45 }),
+    springCoil: std({ map: coilTex(), color: 0x7a7d80, metalness: .6, roughness: .5 }),
     gravel: std({ ...pbr('gravel', 1.1), roughness: 1 }),
     steel: std({ color: 0x9a9ea2, metalness: .85, roughness: .4 }),
     galv: std({ ...pbr('hf_galv', .6), color: 0xd0d4d7, metalness: .85, roughness: .5, normalScale: new THREE.Vector2(.35, .35) }),
