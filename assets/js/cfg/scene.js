@@ -427,12 +427,12 @@ export function buildRestraint({ M, st, w }) {
   if (auto) carriage.add(box(.3, .09, .36, M.sign, 0, .2, 0, { shadow: false }));   // LS name plate on the housing
   // telescopic arm: it points across the lane and slides out of the housing sideways under the trailer (no swing)
   const arm = new THREE.Group(); arm.name = 'restraint_arm'; arm.position.set(-.17, .08, -.2); arm.rotation.y = -Math.PI / 2; carriage.add(arm);
-  const outerL = .9; const outer = cyl(.055, outerL, M.galv, 0, 0, .5 - outerL / 2, 14); outer.rotation.x = Math.PI / 2; arm.add(outer);   // fixed tube: .5 m visible beside the housing, the rest inside it
+  const outerL = .65; const outer = cyl(.055, outerL, M.galv, 0, 0, .3 - outerL / 2, 14); outer.rotation.x = Math.PI / 2; arm.add(outer);   // fixed tube: .3 m visible beside the housing, the rest inside it
   const collar = cyl(.068, .12, M.galv, 0, 0, .06, 14); collar.rotation.x = Math.PI / 2; arm.add(collar);
   const inner = new THREE.Group(); inner.name = 'restraint_arm_inner'; arm.add(inner);
-  const innerL = .9; const tube = cyl(.042, innerL, M.galv, 0, 0, innerL / 2, 14); tube.rotation.x = Math.PI / 2; inner.add(tube);
+  const innerL = .6; const tube = cyl(.042, innerL, M.galv, 0, 0, innerL / 2, 14); tube.rotation.x = Math.PI / 2; inner.add(tube);
   inner.add(rbox(.16, .14, .12, .02, M.bumperRubber, 0, 0, innerL - .04));
-  const inMin = .5 - innerL, inMax = inMin + .54;   // retracted: pad flush with the fixed tube; extended: pad 1.04 m from the rail (reach reduced by 40 % per Julian)
+  const inMin = .3 - innerL, inMax = inMin + .4;   // retracted: pad flush with the fixed tube; extended: pad .7 m from the rail (short arm per Julian)
   inner.position.z = inMin;
   const travel = zPark - zTarget;
   animate = t => { carriage.position.z = zPark - travel * seg(t, 0, .6); inner.position.z = inMin + (inMax - inMin) * ease(seg(t, .6, 1)); };
