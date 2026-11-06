@@ -19,6 +19,14 @@ export const box = (w, h, d, mat, x = 0, y = 0, z = 0, opt = {}) => {
   const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); m.position.set(x, y, z);
   m.castShadow = opt.shadow !== false; m.receiveShadow = opt.receive !== false; return m;
 };
+/* BoxGeometry maps every face to 0..1; rescale the UVs to metres so a texture with repeat = 1/tile keeps its real size on any box (plate, lip) */
+export function uvMetres(mesh) {
+  const g = mesh.geometry, p = g.parameters; if (!p || g.type !== 'BoxGeometry' || g.userData.uvMetres) return mesh;
+  const sizes = [[p.depth, p.height], [p.depth, p.height], [p.width, p.depth], [p.width, p.depth], [p.width, p.height], [p.width, p.height]];
+  const uv = g.attributes.uv; const per = uv.count / 6;
+  for (let i = 0; i < uv.count; i++) { const f = Math.floor(i / per); uv.setXY(i, uv.getX(i) * sizes[f][0], uv.getY(i) * sizes[f][1]); }
+  uv.needsUpdate = true; g.userData.uvMetres = true; return mesh;
+}
 const rbox = (w, h, d, r, mat, x = 0, y = 0, z = 0, opt = {}) => {
   const m = new THREE.Mesh(new RoundedBoxGeometry(w, h, d, 3, r), mat); m.position.set(x, y, z); m.castShadow = opt.shadow !== false; m.receiveShadow = opt.receive !== false; return m;
 };
@@ -219,7 +227,7 @@ export function buildLeveller({ M, st, w, bedH, truckRearZ = null }) {
   // pit frame angle flush in the floor
   pit.add(box(pw + .3, .004, len + .3, M.galvDark, 0, .003, -(len + .3) / 2 + .0, { shadow: false })); pit.add(box(pw + .14, .006, len + .14, M.dark, 0, .004, -(len + .3) / 2 + .0, { shadow: false }));
   const hinge = new THREE.Group(); hinge.position.set(0, -.03, -len); hinge.userData.dynamic = true; pit.add(hinge);   // plate top flush with the hall floor at rest
-  const plate = box(pw, .06, len, M.levellerPlate, 0, 0, len / 2); hinge.add(plate);
+  const plate = uvMetres(box(pw, .06, len, M.levellerPlate, 0, 0, len / 2)); hinge.add(plate);
   // hazard marking across the lip hinge and on the lip, as on the 232NG / 233NG
   hinge.add(box(pw, .004, .14, M.hazard, 0, .032, len - .08, { shadow: false }));
   hinge.add(box(pw, .4, .08, M.levellerFrame, 0, -.24, len - .04));   // front beam
@@ -228,8 +236,8 @@ export function buildLeveller({ M, st, w, bedH, truckRearZ = null }) {
   const rod = cyl(.035, len * .3, M.chrome, 0, -.1, len * .78, 10); rod.rotation.x = Math.PI / 2 - .25; hinge.add(rod);
   const lipPivot = new THREE.Group(); lipPivot.position.set(0, 0, len); lipPivot.userData.dynamic = true; hinge.add(lipPivot);
   let lip;
-  if (L.lip === 'swing') { lip = box(pw - .1, .05, lipLen, M.levellerPlate, 0, 0, lipLen / 2); lipPivot.add(lip); lipPivot.add(box(pw - .1, .004, .08, M.hazard, 0, .028, lipLen - .04, { shadow: false })); lipPivot.rotation.x = Math.PI / 2 - .08; }
-  else { const body = lipLen + 1.2; lip = box(pw - .1, .02, body, M.levellerPlate, 0, .019, 0); lip.geometry.translate(0, 0, -body / 2); lipPivot.add(lip); lip.position.z = 0; lip.add(box(pw - .1, .003, .08, M.hazard, 0, .0115, -.04, { shadow: false })); }   // telescopic lip: thin 20 mm steel plate flush with the platform top, one rigid piece sliding out of a slot in the front edge; its body runs 1.2 m back inside the platform
+  if (L.lip === 'swing') { lip = uvMetres(box(pw - .1, .05, lipLen, M.levellerPlate, 0, 0, lipLen / 2)); lipPivot.add(lip); lipPivot.add(box(pw - .1, .004, .08, M.hazard, 0, .028, lipLen - .04, { shadow: false })); lipPivot.rotation.x = Math.PI / 2 - .08; }
+  else { const body = lipLen + 1.2; lip = uvMetres(box(pw - .1, .02, body, M.levellerPlate, 0, .019, 0)); lip.geometry.translate(0, 0, -body / 2); lipPivot.add(lip); lip.position.z = 0; lip.add(box(pw - .1, .003, .08, M.hazard, 0, .0115, -.04, { shadow: false })); }   // telescopic lip: thin 20 mm steel plate flush with the platform top, one rigid piece sliding out of a slot in the front edge; its body runs 1.2 m back inside the platform
   // galvanised toe guards (side skirts)
   [-1, 1].forEach(s => { const sk = box(.02, .7, len, M.galvDark, s * (pw / 2 - .01), -.36, len / 2, { shadow: false }); hinge.add(sk); });
   mergeStatic(hinge); g.add(pit);
