@@ -727,7 +727,7 @@ export function buildForklift({ M, truckRearZ, bedH, hingeZ, lipTipZ }) {
   const forkZ = tpl ? 2.35 : 1.0;                                                                 // where the forks start (pallet sits on them)
   const load = new THREE.Group(); load.position.set(0, .16, forkZ + .6); g.add(load);              // euro pallet with boxes, 16 cm above the floor while driving
   load.add(box(.8, .14, 1.2, M.pallet, 0, .07, 0)); load.add(box(.75, .95, 1.1, M.boxKraft, 0, .14 + .475, 0)); load.add(box(.7, .5, .55, M.boxKraft, .02, .14 + .95 + .25, -.25));
-  const dropped = load.clone(); dropped.visible = false; const holder = new THREE.Group(); holder.add(dropped);   // the pallet stays in the vehicle after the run
+  const dropped = load.clone(); dropped.visible = false; const holder = new THREE.Group(); holder.userData.dynamic = true; holder.visible = false; holder.add(dropped);   // dynamic: never merged into the static hall geometry   // the pallet stays in the vehicle after the run
   const z0 = -9.5, z1 = truckRearZ + 2.6, yIn = bedH + .03;                                       // start deep in the hall, stop 2.6 m inside the vehicle
   const yAt = z => z <= hingeZ ? DOCK_H : z >= lipTipZ ? yIn : DOCK_H + (yIn - DOCK_H) * (z - hingeZ) / (lipTipZ - hingeZ);
   const slope = Math.atan2(yIn - DOCK_H, lipTipZ - hingeZ);
