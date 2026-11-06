@@ -11,7 +11,7 @@ import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import * as C from './cfg/catalog.js?v=32';
 import { createMaterials, TEX } from './cfg/materials.js?v=31';
-import { buildWarehouse, buildStudio, dispose, DOCK_H, ease, registerParts, registerVehicles, mergeStatic, QUALITY } from './cfg/scene.js?v=75';
+import { buildWarehouse, buildStudio, dispose, DOCK_H, ease, registerParts, registerVehicles, mergeStatic, QUALITY } from './cfg/scene.js?v=76';
 
 const $ = id => document.getElementById(id);
 const q = new URLSearchParams(location.search);
@@ -152,7 +152,9 @@ function applyDocking(t, force = false) {
   const doorV = manDoor ? manDoor.value : door, levV = manLev ? manLev.value : lev;
   r.restraints.forEach(x => x.animate(restr)); r.doors.forEach(x => x.animate(doorV)); r.shelters.forEach(x => x.animate(shel)); r.levellers.forEach(x => x.animate(levV, arrive >= .999 && state.truck !== 'none'));
   r.lights.forEach(x => x.setOn(doorV > .3)); r.traffic.forEach(x => x.set(restr > .5 ? 'red' : 'green'));
-  const fork = seqFork(t); (r.forklifts || []).forEach(x => x.animate(fork, forkOn() && levV >= .999 && !manLev && arrive >= .999));
+  const fork = seqFork(t); const run = forkOn() && levV >= .999 && !manLev && arrive >= .999;
+  if (run && fork >= 1) loaded = true; if (s < .45) loaded = false;   // vehicle gone: the next one arrives empty
+  (r.forklifts || []).forEach(x => x.animate(leaving ? 0 : fork, run && !leaving, leaving && loaded));
   updateManualButtons();
   $('dockLabel').textContent = s < .45 ? 'Dock frei' : s < 3.42 ? 'Lkw fährt an' : s < 4.32 ? 'Wegfahrsicherung aktiv' : s < doorEnd() + .2 ? 'Tor öffnet' : s < levEnd() - .1 ? 'Überladebrücke fährt auf' : forkOn() && s < seqDur() - .1 ? 'Stapler belädt' : 'Verladung läuft';
   invalidate();
@@ -185,7 +187,8 @@ function setMode(mode) {
   $('viewsYard').hidden = mode === 'studio'; $('viewsStudio').hidden = mode !== 'studio';
   buildWorld(); goView(mode === 'studio' ? 'studio' : 'yard', true); history.replaceState(null, '', hash());
 }
-function setDock(open) { dockTarget = open ? 1 : 0; dockFrom = docking; dockAnimStart = performance.now();
+let leaving = false, loaded = false;   // departure runs backwards without the forklift: it is already out, the pallet leaves with the vehicle
+function setDock(open) { dockTarget = open ? 1 : 0; leaving = !open; dockFrom = open ? docking : Math.min(docking, levEnd() / seqDur()); dockAnimStart = performance.now();
   // hand manual overrides back to the sequence: blend from the manual state to what the sequence expects at the current position
   if (manDoor) manDoor = { from: manDoor.value, to: seqDoor(docking), start: performance.now(), dur: 1200, value: manDoor.value, release: true };
   if (manLev) manLev = { from: manLev.value, to: seqLev(docking), start: performance.now(), dur: 1200, value: manLev.value, release: true }; const b = $('dockBtn'); b.querySelector('span').textContent = open ? 'Lkw abfahren' : 'Lkw andocken'; b.classList.toggle('is-open', open); }
@@ -238,7 +241,7 @@ function loop(now) {
   requestAnimationFrame(loop);
   if (document.hidden) return;
   if (camTween) { const k = Math.min(1, (now - camTween.start) / camTween.dur), e = ease(k); camera.position.lerpVectors(camTween.from, camTween.to, e); controls.target.lerpVectors(camTween.fromT, camTween.toT, e); if (k >= 1) { camTween = null; if (pendingLimits) { controls.minDistance = pendingLimits.dist[0]; controls.maxDistance = pendingLimits.dist[1]; controls.minPolarAngle = pendingLimits.polar; pendingLimits = null; } } dirty = true; }
-  if (dockAnimStart !== null) { const k = Math.min(1, (now - dockAnimStart) / (seqDur() * 1000)); docking = dockFrom + (dockTarget - dockFrom) * k; applyDocking(docking); $('dockRange').value = Math.round(docking * 100); if (k >= 1) dockAnimStart = null; }
+  if (dockAnimStart !== null) { const k = Math.min(1, (now - dockAnimStart) / (seqDur() * 1000 * Math.max(.05, Math.abs(dockTarget - dockFrom)))); docking = dockFrom + (dockTarget - dockFrom) * k; applyDocking(docking); $('dockRange').value = Math.round(docking * 100); if (k >= 1) dockAnimStart = null; }
   let manBusy = false;
   [['door', manDoor], ['lev', manLev]].forEach(([w, o]) => { if (!o) return; const k = Math.min(1, (now - o.start) / o.dur); o.value = o.from + (o.to - o.from) * ease(k); manBusy = true;
     if (k >= 1) { if (o.release) { if (w === 'door') manDoor = null; else manLev = null; } else o.done = true; } });
@@ -398,7 +401,7 @@ sizeInput('inpW', 'w'); sizeInput('inpH', 'h');
 $('resetBtn').addEventListener('click', () => { history.replaceState(null, '', location.pathname); location.reload(); });
 $('dockBtn').addEventListener('click', () => { setDock(dockTarget === 0); if (mobile && sheetState !== 'peek') setSheet('peek'); });
 $('doorBtn').addEventListener('click', () => manualToggle('door')); $('levBtn').addEventListener('click', () => manualToggle('lev'));
-$('dockRange').addEventListener('input', e => { dockAnimStart = null; manDoor = manLev = null; updateManualButtons(); docking = dockTarget = e.target.value / 100; applyDocking(docking); $('dockBtn').querySelector('span').textContent = docking > .5 ? 'Lkw abfahren' : 'Lkw andocken'; });
+$('dockRange').addEventListener('input', e => { dockAnimStart = null; manDoor = manLev = null; updateManualButtons(); leaving = e.target.value / 100 < docking; docking = dockTarget = e.target.value / 100; applyDocking(docking); $('dockBtn').querySelector('span').textContent = docking > .5 ? 'Lkw abfahren' : 'Lkw andocken'; });
 document.querySelectorAll('.cfg-views button').forEach(b => b.addEventListener('click', () => { goView(b.dataset.view); if (mobile && sheetState !== 'peek') setSheet('peek'); }));
 document.querySelectorAll('.cfg-tab').forEach(t => t.addEventListener('click', () => setMode(t.dataset.mode)));
 document.querySelectorAll('.cfg-step-head').forEach(h => h.addEventListener('click', () => h.parentElement.classList.toggle('is-collapsed')));
