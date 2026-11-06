@@ -226,7 +226,7 @@ export function buildLeveller({ M, st, w, bedH, truckRearZ = null }) {
   pit.add(box(pw + .3, .74, .15, M.plinth, 0, -.37, -(len + .3) + .075));
   // pit frame angle flush in the floor
   pit.add(box(pw + .3, .004, len + .3, M.galvDark, 0, .003, -(len + .3) / 2 + .0, { shadow: false })); pit.add(box(pw + .14, .006, len + .14, M.dark, 0, .004, -(len + .3) / 2 + .0, { shadow: false }));
-  const hinge = new THREE.Group(); hinge.position.set(0, -.03, -len); hinge.userData.dynamic = true; pit.add(hinge);   // plate top flush with the hall floor at rest
+  const hinge = new THREE.Group(); hinge.position.set(0, -.02, -len); hinge.userData.dynamic = true; pit.add(hinge);   // plate top 1 cm above the pit frame at rest (frame boxes sit at +.001..+.007), so the tread surface is always visible
   const plate = uvMetres(box(pw, .06, len, M.levellerPlate, 0, 0, len / 2)); hinge.add(plate);
   // hazard marking across the lip hinge and on the lip, as on the 232NG / 233NG
   hinge.add(box(pw, .004, .14, M.hazard, 0, .032, len - .08, { shadow: false }));
