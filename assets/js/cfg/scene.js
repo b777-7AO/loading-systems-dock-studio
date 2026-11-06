@@ -272,7 +272,7 @@ export function buildLeveller({ M, st, w, bedH, truckRearZ = null }) {
   const plateEdgeZ = stepped ? -WALL_T - .12 : 0;   // plate front edge at the dock edge (the door closes on the platform); stepped dock: behind the step strip
   const pit = new THREE.Group(); pit.position.set(0, DOCK_H, plateEdgeZ);
   if (stepped) {   // the step: a leveller-wide strip in front of the plate, 50 cm below the hall floor, closed by the T extension of the door
-    const zw = st.w / 1000 - .1, zd = .12 + .02, zy = -.5; const zone = new THREE.Group(); zone.position.set(0, DOCK_H, -WALL_T); g.add(zone);
+    const zw = pw + .1, zd = .12 + .02, zy = -.5; const zone = new THREE.Group(); zone.position.set(0, DOCK_H, -WALL_T); g.add(zone);
     zone.add(box(zw, .02, zd, M.levellerFrame, 0, zy + .01, -zd / 2));                                          // lower floor, runs out to the door
     [-1, 1].forEach(sx => zone.add(box(.06, -zy, zd, M.plinth, sx * (zw / 2 + .03), zy / 2, -zd / 2)));          // side walls of the step
     [-1, 1].forEach(sx => zone.add(box(.05, .006, zd, M.galvDark, sx * (zw / 2 + .035), .003, -zd / 2, { shadow: false })));   // edge angles along the hall floor
@@ -724,8 +724,8 @@ export function buildWarehouse({ mats, st, studio = false }) {
   const w = st.w / 1000, h = st.h / 1000; const bays = studio ? 1 : st.bays; const lite = QUALITY.mobile;
   const pitch = Math.max(PITCH, w + 1.9); const W = studio ? w + 3.2 : bays * pitch + 8; const H = DOCK_H + HALL_H; const D = studio ? 6 : HALL_D;
   const x0 = -W / 2; const bayX = i => studio ? 0 : x0 + 4 + pitch * i + pitch / 2;
-  const stepDown = st.leveller === 'stepped' ? .5 : 0, stepW = w - .1;   // stepped dock: a slit in the floor in front of the leveller, door width, 50 cm deep; the (straight, taller) door runs down into it
-  const openings = []; for (let i = 0; i < bays; i++) openings.push({ x: bayX(i) - x0 - w / 2, y: DOCK_H - stepDown, w, h: h + stepDown, stepDown });
+  const stepDown = st.leveller === 'stepped' ? .5 : 0, stepW = (st.levellerW || 2000) / 1000 + .1;   // stepped dock: slit in the floor in front of the leveller (leveller width, 50 cm deep); the straight, taller door runs down into it and disappears into the floor at the sides
+  const openings = []; for (let i = 0; i < bays; i++) openings.push({ x: bayX(i) - x0 - w / 2, y: DOCK_H - stepDown, w, h: h + stepDown, faceNotch: stepDown ? { x: (w - stepW) / 2, w: stepW, d: stepDown } : null });
   // mandoor (pedestrian door) next to the first bay
   if (st.mandoor && st.mandoor !== 'none' && !studio) openings.push({ x: bayX(0) - x0 - w / 2 - 1.9, y: DOCK_H, w: (st.mandoorW || 1000) / 1000, h: (st.mandoorH || 2125) / 1000 });
   // facade: dock wall (concrete) up to DOCK_H, sandwich panels above
@@ -744,8 +744,7 @@ export function buildWarehouse({ mats, st, studio = false }) {
   const front = wall(W, H + .4, WALL_T, openings, facMat); front.position.set(x0, 0, 0); g.add(front);
   // dock wall: concrete face below the openings, split per bay
   let px = x0; openings.forEach(o => { const ox = x0 + o.x; if (ox - px > .01) g.add(box(ox - px, DOCK_H + .02, .06, M.plinth, (ox + px) / 2, (DOCK_H + .02) / 2, .03));
-    if (o.stepDown) g.add(box(o.w, DOCK_H - o.stepDown, .06, M.plinth, ox + o.w / 2, (DOCK_H - o.stepDown) / 2, .03));   // stepped dock: face only up to the slit floor
-    else if (o.notch) { const n = o.notch;
+    if (o.faceNotch) { const n = o.faceNotch;   // stepped dock: concrete face under the door, open only over the leveller-wide slit
       g.add(box(n.x, DOCK_H + .02, .06, M.plinth, ox + n.x / 2, (DOCK_H + .02) / 2, .03)); g.add(box(o.w - n.x - n.w, DOCK_H + .02, .06, M.plinth, ox + n.x + n.w + (o.w - n.x - n.w) / 2, (DOCK_H + .02) / 2, .03));
       g.add(box(n.w, DOCK_H - n.d, .06, M.plinth, ox + n.x + n.w / 2, (DOCK_H - n.d) / 2, .03)); }
     else if (st.leveller !== 'none') {   // leveller runs to the dock edge: the face is lowered over the plate width so the platform front shows at the edge
