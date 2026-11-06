@@ -106,7 +106,7 @@ function buildWorld() {
 /* docking sequence phases */
 function applyDocking(t, force = false) {
   if (!wh) return; const r = wh.rigs;
-  const arrive = ease(Math.min(1, t / .38)); const restr = Math.max(0, Math.min(1, (t - .36) / .12)); const door = Math.max(0, Math.min(1, (t - .46) / .2)); const shel = Math.max(0, Math.min(1, (t - .5) / .22)); const lev = Math.max(0, Math.min(1, (t - .66) / .34));
+  const arrive = ease(Math.min(1, t / .38)); const restr = Math.max(0, Math.min(1, (t - .36) / .12)); const door = Math.max(0, Math.min(1, (t - .46) / .2)); const shel = Math.max(0, Math.min(1, (t - .31) / .07)); /* curtains fold while the vehicle pushes into the shelter */ const lev = Math.max(0, Math.min(1, (t - .66) / .34));
   const rearDoors = Math.max(0, Math.min(1, (t - .03) / .17));
   r.trucks.forEach(tr => { const start = 31, end = .34; const z = start + (end - start) * arrive; const prev = tr.group.position.z; tr.group.position.z = z; tr.animate(prev - z); if (tr.doors) tr.doors(rearDoors); });
   r.restraints.forEach(x => x.animate(restr)); r.doors.forEach(x => x.animate(door)); r.shelters.forEach(x => x.animate(shel)); r.levellers.forEach(x => x.animate(lev));

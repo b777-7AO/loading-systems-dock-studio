@@ -259,7 +259,12 @@ const logoPlane = (M, x, y, z, w = .62) => { const m = new THREE.Mesh(new THREE.
 /* ---------------------------------------------------------------- Dock shelter (403M curtain, 400NG cushion, 405 foam, 407NG inflatable, 408NG inflatable top, 421NG van) */
 export function buildShelter({ M, st, w, h }) {
   const g = new THREE.Group(); const S = SHELTERS[st.shelter]; if (!S || st.shelter === 'none') return { group: g, animate: () => {} };
-  const depth = .65, side = .55, top = .95; const W = w + 2 * side + .1, Hs = h + top + .12; const y0 = DOCK_H - .1;
+  // LS 403M standard frame 3400 x 3500 mm with 600 mm side curtains and a 1000 mm top curtain: clear opening 2200 x 2500, so a
+  // 2.55 m wide / 3.9 m high trailer overlaps the curtains and pushes them back when it docks (no gap between shelter and vehicle)
+  const depth = .65; const W = Math.max(3.4, w + .4), Hs = Math.max(3.5, h + .25); const side = (W - 2.2) / 2, top = Hs - 2.5; const y0 = DOCK_H - .1;
+  const T = TRUCKS[st.truck]; const bodyW = (T && T.bodyW) || 0, bodyH = (T && T.bodyH) || 0;
+  const ovS = Math.max(0, bodyW / 2 - (W / 2 - side)), ovT = Math.max(0, bodyH - (y0 + Hs - top));   // how far the vehicle reaches into the curtains
+  const angS = ovS > 0 ? Math.acos(Math.max(0, side - ovS) / side) : 0, angT = ovT > 0 ? Math.acos(Math.max(0, top - ovT) / top) : 0;
   let animate = () => {};
   const marks = (zf, frameW = side, topH = top) => {   // white reflective marks as on the LS 403M: two parallel diagonals in each top corner, one vertical pill per side curtain
     [-1, 1].forEach(s => { [0, .19].forEach(dx => { const mk = rbox(.075, .38, .012, .03, M.shelterStripe, s * (W / 2 - frameW + .3 + dx), y0 + Hs - topH / 2 + .12 - dx * .55, zf, { shadow: false }); mk.rotation.z = s * .72; g.add(mk); });
@@ -275,12 +280,17 @@ export function buildShelter({ M, st, w, h }) {
     [-1, 1].forEach(s => fb.add(box(.1, Hs, depth, fr, s * (W / 2 - .05), y0 + Hs / 2, depth / 2)));   // side walls
     [-1, 1].forEach(s => fb.add(box(side + .05, Hs, .04, fr, s * (W / 2 - side / 2 - .02), y0 + Hs / 2, .02))); fb.add(box(W, top + .05, .04, fr, 0, y0 + Hs - top / 2, .02));   // closed back ring against the facade (opening stays free)
     fb.add(box(W + .12, .05, depth + .12, fr, 0, y0 + Hs + .02, depth / 2 - .04));                    // roof cover
-    [-1, 1].forEach(s => fb.add(box(side, Hs - top - .02, ct, s < 0 ? M.shelter403Side : M.shelter403SideR, s * (W / 2 - side / 2), y0 + (Hs - top) / 2 - .01, depth - ct / 2)));
-    fb.add(box(W, top, ct, M.shelter403Top, 0, y0 + Hs - top / 2, depth - ct / 2));
+    // curtains hang from hinges at the frame (side: outer vertical edge, top: upper edge) and fold back when the vehicle pushes them
+    const sidePiv = [-1, 1].map(s => { const pv = new THREE.Group(); pv.position.set(s * (W / 2 - .1), y0 + (Hs - top) / 2 - .01, depth - ct / 2); pv.userData.dynamic = true; g.add(pv);
+      pv.add(box(side, Hs - top - .02, ct, s < 0 ? M.shelter403Side : M.shelter403SideR, -s * side / 2, 0, 0)); return { pv, s }; });
+    const topPiv = new THREE.Group(); topPiv.position.set(0, y0 + Hs, depth - ct / 2); topPiv.userData.dynamic = true; g.add(topPiv);
+    topPiv.add(box(W, top, ct, M.shelter403Top, 0, -top / 2, 0));
+    const fold = t => { const e = ease(t); sidePiv.forEach(({ pv, s }) => { pv.rotation.y = -s * angS * e; }); topPiv.rotation.x = angT * e; };
+    animate = fold;
     [-1, 1].forEach(s => fb.add(box(.05, Hs, .015, trim, s * (W / 2 - .025), y0 + Hs / 2, depth + .005, { shadow: false })));
     fb.add(box(W, .05, .015, trim, 0, y0 + Hs - .025, depth + .005, { shadow: false }));
     [-1, 1].forEach(s => { const r = new THREE.Mesh(new THREE.TorusGeometry(.04, .006, 8, 16), M.galvDark); r.position.set(s * (W / 2 - side - .1), y0 + Hs - top + .05, depth + .02); fb.add(r); });
-    if (S.type === 'inflTop') { const cushion = rbox(W - .2, .55, depth - .15, .08, M.cushion, 0, y0 + Hs - top - .25, depth / 2); cushion.userData.dynamic = true; g.add(cushion); cushion.scale.y = .25; animate = t => { const e = ease(t); cushion.scale.y = .25 + .75 * e; cushion.position.y = y0 + Hs - top - .1 - (.55 * cushion.scale.y) / 2; }; }
+    if (S.type === 'inflTop') { const cushion = rbox(W - .2, .55, depth - .15, .08, M.cushion, 0, y0 + Hs - top - .25, depth / 2); cushion.userData.dynamic = true; g.add(cushion); cushion.scale.y = .25; animate = t => { fold(t); const e = ease(t); cushion.scale.y = .25 + .75 * e; cushion.position.y = y0 + Hs - top - .1 - (.55 * cushion.scale.y) / 2; }; }
   } else if (S.type === 'cushion' || S.type === 'foam') {
     const th = S.type === 'foam' ? .44 : .36; const r = S.type === 'foam' ? .12 : .05;
     g.add(box(W, .06, depth, M.shelterFrame, 0, y0 + Hs, depth / 2)); g.add(box(W, .1, depth + .25, M.shelterFrame, 0, y0 + Hs + .08, depth / 2 - .05));
