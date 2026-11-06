@@ -706,10 +706,12 @@ export function buildWarehouse({ mats, st, studio = false }) {
   if (st.facade === 'panel_dark') facMat.color.set(0x4a4f53); if (st.facade === 'panel_white') facMat.color.set(0xeceeee);
   if (studio) {
     // product studio: no hall, only the equipment on a concrete dock block (U-shaped round the leveller pit)
-    const len = (st.levellerLen || 2500) / 1000 + .3, pw = (st.levellerW || 2000) / 1000 + .3, bw = w + 2.6, bd = len + 1.2;
-    [-1, 1].forEach(sx => g.add(box((bw - pw) / 2, DOCK_H, bd, M.plinth, sx * (pw / 2 + (bw - pw) / 4), DOCK_H / 2, -bd / 2 + .02)));
-    g.add(box(pw, DOCK_H, bd - len - .5, M.plinth, 0, DOCK_H / 2, -len - .5 - (bd - len - .5) / 2 + .02));
-    g.add(box(pw, DOCK_H - .8, len + .5, M.plinth, 0, (DOCK_H - .8) / 2, -(len + .5) / 2 + .02));   // under the pit
+    // cut-out exactly the pit footprint (pit = plate + .02 each way, frame angle .04), measured from the plate edge at plateEdgeZ
+    const len = (st.levellerLen || 2500) / 1000 + .06, pw = (st.levellerW || 2000) / 1000 + .08, bw = w + 2.6, bd = len + 1.6, zf = -WALL_T - .12 + .03;
+    [-1, 1].forEach(sx => g.add(box((bw - pw) / 2, DOCK_H, bd + .3, M.plinth, sx * (pw / 2 + (bw - pw) / 4), DOCK_H / 2, zf - bd / 2 + .15)));
+    g.add(box(pw, DOCK_H, bd - len, M.plinth, 0, DOCK_H / 2, zf - len - (bd - len) / 2));          // behind the pit
+    g.add(box(pw, DOCK_H, .3, M.plinth, 0, DOCK_H / 2, zf + .15));                                   // in front of the pit (dock face)
+    g.add(box(pw, DOCK_H - .78, len, M.plinth, 0, (DOCK_H - .78) / 2, zf - len / 2));                // under the pit
   } else {
   const front = wall(W, H + .4, WALL_T, openings, facMat); front.position.set(x0, 0, 0); g.add(front);
   // dock wall: concrete face below the openings, split per bay
