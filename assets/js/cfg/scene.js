@@ -1,7 +1,7 @@
 /* Loading Systems · Dock Studio scene: warehouse with N loading bays, doors, dock levellers, shelters, bumpers, restraints, lights, trucks.
    Units metres. X along the facade, Y up, +Z = yard (outside). Yard level y = 0, warehouse floor y = DOCK_H. Facade front face at z = 0. */
 import * as THREE from 'three';
-import { DOORS, LEVELLERS, SHELTERS, BUMPERS, TRUCKS, WINDOWS, FULLVISION, LIFT, LIFT_620 } from './catalog.js?v=34';
+import { DOORS, LEVELLERS, SHELTERS, BUMPERS, TRUCKS, WINDOWS, FULLVISION, LIFT, LIFT_620 } from './catalog.js?v=35';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 
@@ -81,15 +81,23 @@ export function registerVehicles(gltfScene, M, { rename = {} } = {}) {
   gltfScene.traverse(o => {
     if (!o.isMesh) return; o.castShadow = true; o.receiveShadow = true; o.userData.shared = true;
     const m = M.vehicleMap[o.material.name]; if (m) o.material = m;
-    else if (o.material.map) { o.material.envMapIntensity = 1.0; o.material.metalness = .25; o.material.roughness = 1.0; if (/^semi/.test(o.name)) { o.material.color.setScalar(1.32); o.material.roughness = .9; o.material.metalness = .15; } }   // AI-scanned vehicle: keep its PBR textures, tame the metallic map (painted panels, not chrome); the semi scan's base colour is grey, lift it to white
+    else if (o.material.map) { o.material.envMapIntensity = 1.0; o.material.metalness = .25; o.material.roughness = 1.0; if (/^(semi|van)/.test(o.name)) { o.material.color.setScalar(1.32); o.material.roughness = .9; o.material.metalness = .15; } }   // AI-scanned vehicle: keep its PBR textures, tame the metallic map (painted panels, not chrome); the semi scan's base colour is grey, lift it to white
     if (/decal/.test(o.name) || o.material === M.decalDark) { o.material = M.decalDark; o.castShadow = false; o.receiveShadow = false; o.renderOrder = 2; }
   });
   gltfScene.children.forEach(c => { c.position.set(0, 0, 0); c.rotation.set(0, 0, 0); VEHICLES[rename[c.name] || c.name] = c; if (c.name === 'rigid' && !rename[c.name]) reshapeRigid(c);
-    if (c.name === 'van' && !rename[c.name]) c.traverse(o => { if (/decal/.test(o.name)) { o.position.z -= 1.35; o.scale.setScalar(.8); } }); });   // van: logo centred on the cargo side wall, not at the rear corner
+    if (c.name === 'van' && !rename[c.name]) { reshapeVan(c); c.traverse(o => { if (/decal/.test(o.name)) { o.position.z -= 1.35; o.position.y += .22; o.scale.setScalar(.8); } }); } });   // van: logo centred on the cargo side wall, not at the rear corner
 }
 /* 7.5 t box truck: the scan is 2.4 m wide, 3.11 m high with a 1.05 m bed. Julian: same body width, height and bed height as the semi,
    only shorter. So (in model units, before the uniform 1.07 scale that gives the 2.63 m width): lift everything above the wheels by .17
    (bed 1.30 m) and stretch the box (z < 7, above the chassis) so its roof reaches 3.92 m; the cab (z > 7) keeps its height. */
+/* Van: the scan is a 2.62 m medium-roof body. Julian: the van should be higher -> high roof: everything above the wheel arches is lifted
+   by 30 cm (the band between .5 and .9 m is stretched), wheels and floor stay where they are: 2.92 m overall. */
+const VAN_LIFT = .30;
+function reshapeVan(root) {
+  root.traverse(o => { if (!o.isMesh || o.geometry.userData.reshaped) return; const pa = o.geometry.attributes.position;
+    for (let i = 0; i < pa.count; i++) { const y = pa.getY(i); if (y > .9) pa.setY(i, y + VAN_LIFT); else if (y > .5) pa.setY(i, y + VAN_LIFT * (y - .5) / .4); }
+    pa.needsUpdate = true; o.geometry.computeBoundingBox(); o.geometry.computeBoundingSphere(); o.geometry.userData.reshaped = true; });
+}
 function reshapeRigid(root) {
   root.traverse(o => { if (!o.isMesh || o.geometry.userData.reshaped) return; const pa = o.geometry.attributes.position;
     for (let i = 0; i < pa.count; i++) { const y0 = pa.getY(i), z = pa.getZ(i); let y = y0 + (y0 > .92 ? .17 : 0); if (z < 7.0 && y0 > 1.4) y = 1.57 + (y0 - 1.4) * 1.2246; pa.setY(i, y); }
