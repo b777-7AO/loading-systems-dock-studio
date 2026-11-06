@@ -282,7 +282,9 @@ export function buildLeveller({ M, st, w, bedH, truckRearZ = null }) {
   [-1, 1].forEach(s => pit.add(box(.04, .74, len + gap, M.plinth, s * (pw / 2 + gap / 2 + .02), -.37, -(len + gap) / 2)));
   pit.add(box(pw + gap + .08, .74, .04, M.plinth, 0, -.37, -(len + gap) - .02));
   // pit frame angle flush in the floor
-  pit.add(box(pw + gap + .04, .004, len + gap + .02, M.galvDark, 0, .003, -(len + gap) / 2 + .01, { shadow: false }));   // thin galvanised pit frame angle
+  { const fw = pw + gap + .04, fd = len + gap + .02, zc = -(len + gap) / 2 + .01;   // galvanised pit frame angle: a 4 cm rim round the pit (the pit itself stays open below the plate)
+    [-1, 1].forEach(sx => pit.add(box(.04, .004, fd, M.galvDark, sx * (fw / 2 - .02), .003, zc, { shadow: false })));
+    pit.add(box(fw, .004, .04, M.galvDark, 0, .003, zc - fd / 2 + .02, { shadow: false })); pit.add(box(fw, .004, .04, M.galvDark, 0, .003, zc + fd / 2 - .02, { shadow: false })); }
   pit.add(box(pw + gap + .08, .012, .14, M.galvDark, 0, .006, -len - .03, { shadow: false }));   // rear hinge cover: closes the gap behind the plate, floor runs through
   const hinge = new THREE.Group(); hinge.name = 'leveller_hinge'; hinge.position.set(0, -.02, -len); hinge.userData.dynamic = true; pit.add(hinge);   // plate top 1 cm above the pit frame at rest (frame boxes sit at +.001..+.007), so the tread surface is always visible
   const plate = uvMetres(box(pw, .06, len, M.levellerPlate, 0, 0, len / 2)); hinge.add(plate);
@@ -756,10 +758,13 @@ export function buildWarehouse({ mats, st, studio = false }) {
   const inner = M.facadeInner;
   g.add(box(WALL_T, H, D, facMat, x0 + WALL_T / 2, H / 2, -D / 2)); g.add(box(WALL_T, H, D, facMat, -x0 - WALL_T / 2, H / 2, -D / 2));
   g.add(box(W, H, WALL_T, inner, 0, H / 2, -D + WALL_T / 2));
-  if (st.leveller === 'stepped') {   // hall floor with the stepped-dock safety zones cut out (one per bay)
+  if (st.leveller !== 'none') {   // hall floor with the leveller pits cut out (plus the stepped-dock step strips), one per bay
     const fw = W - .6, fd = D - .6; const sh = new THREE.Shape(); sh.moveTo(-fw / 2, -fd / 2); sh.lineTo(fw / 2, -fd / 2); sh.lineTo(fw / 2, fd / 2); sh.lineTo(-fw / 2, fd / 2); sh.closePath();
-    for (let i = 0; i < bays; i++) { const cx = bayX(i), hw = stepW / 2, z1 = -WALL_T - .02, z2 = -WALL_T - .14;   /* hole must lie inside the floor plane (its front edge is at -WALL_T) or earcut drops it */ const y1 = -z1 - D / 2, y2 = -z2 - D / 2;   // local y = -(world z) - D/2
-      const hole = new THREE.Path(); hole.moveTo(cx - hw, y1); hole.lineTo(cx + hw, y1); hole.lineTo(cx + hw, y2); hole.lineTo(cx - hw, y2); hole.closePath(); sh.holes.push(hole); }
+    const isStepped = st.leveller === 'stepped'; const pLen = (st.levellerLen || 2500) / 1000 + .02, pW = (st.levellerW || 2000) / 1000 + .04; const pEdge = isStepped ? -WALL_T - .12 : 0;
+    const addHole = (cx, hw, z1, z2) => { const y1 = -z1 - D / 2, y2 = -z2 - D / 2; /* local y = -(world z) - D/2 */ const hole = new THREE.Path(); hole.moveTo(cx - hw, y1); hole.lineTo(cx + hw, y1); hole.lineTo(cx + hw, y2); hole.lineTo(cx - hw, y2); hole.closePath(); sh.holes.push(hole); };
+    for (let i = 0; i < bays; i++) { const cx = bayX(i);
+      if (isStepped) addHole(cx, stepW / 2, -WALL_T - .02, -WALL_T - .14);   /* step strip; must lie inside the floor plane (front edge at -WALL_T-.3+.3) */
+      addHole(cx, pW / 2, Math.min(pEdge, -WALL_T - .04) - (isStepped ? .12 : 0), pEdge - pLen - .01); }   // pit
     const fg = new THREE.ShapeGeometry(sh, 2); const uv = fg.attributes.uv, pa = fg.attributes.position; for (let i = 0; i < uv.count; i++) uv.setXY(i, pa.getX(i), pa.getY(i));
     const fm = new THREE.Mesh(fg, M.floor); fm.rotation.x = -Math.PI / 2; fm.position.set(0, DOCK_H, -D / 2); fm.receiveShadow = true; g.add(fm);
   } else g.add(plane(W - .6, D - .6, M.floor, 0, DOCK_H, -D / 2));
