@@ -737,7 +737,12 @@ export function buildWarehouse({ mats, st, studio = false }) {
   } else {
   const front = wall(W, H + .4, WALL_T, openings, facMat); front.position.set(x0, 0, 0); g.add(front);
   // dock wall: concrete face below the openings, split per bay
-  let px = x0; openings.forEach(o => { const ox = x0 + o.x; if (ox - px > .01) g.add(box(ox - px, DOCK_H + .02, .06, M.plinth, (ox + px) / 2, (DOCK_H + .02) / 2, .03)); px = ox + o.w; }); if (x0 + W - px > .01) g.add(box(x0 + W - px, DOCK_H + .02, .06, M.plinth, (x0 + W + px) / 2, (DOCK_H + .02) / 2, .03));
+  let px = x0; openings.forEach(o => { const ox = x0 + o.x; if (ox - px > .01) g.add(box(ox - px, DOCK_H + .02, .06, M.plinth, (ox + px) / 2, (DOCK_H + .02) / 2, .03));
+    if (o.notch) { const n = o.notch;   // stepped dock: concrete dock face under the door too, only the notch stays open
+      g.add(box(n.x, DOCK_H + .02, .06, M.plinth, ox + n.x / 2, (DOCK_H + .02) / 2, .03)); g.add(box(o.w - n.x - n.w, DOCK_H + .02, .06, M.plinth, ox + n.x + n.w + (o.w - n.x - n.w) / 2, (DOCK_H + .02) / 2, .03));
+      g.add(box(n.w, DOCK_H - n.d, .06, M.plinth, ox + n.x + n.w / 2, (DOCK_H - n.d) / 2, .03)); }
+    else g.add(box(o.w, DOCK_H + .02, .06, M.plinth, ox + o.w / 2, (DOCK_H + .02) / 2, .03));   // concrete face under the door
+    px = ox + o.w; }); if (x0 + W - px > .01) g.add(box(x0 + W - px, DOCK_H + .02, .06, M.plinth, (x0 + W + px) / 2, (DOCK_H + .02) / 2, .03));
   // roof edge / parapet and gutter
   g.add(box(W + .4, .5, .5, M.dark, 0, H + .4, -.1)); g.add(box(W + .6, .08, .14, M.galv, 0, H + .66, .1, { shadow: false }));
   // side walls, back wall, floor, ceiling, trusses, lights
