@@ -11,7 +11,7 @@ import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import * as C from './cfg/catalog.js?v=32';
 import { createMaterials, TEX } from './cfg/materials.js?v=31';
-import { buildWarehouse, buildStudio, dispose, DOCK_H, ease, registerParts, registerVehicles, mergeStatic, QUALITY } from './cfg/scene.js?v=68';
+import { buildWarehouse, buildStudio, dispose, DOCK_H, ease, registerParts, registerVehicles, mergeStatic, QUALITY } from './cfg/scene.js?v=70';
 
 const $ = id => document.getElementById(id);
 const q = new URLSearchParams(location.search);
@@ -102,12 +102,16 @@ let manDoor = null, manLev = null;
 const DOOR_BASE = 1.8;
 const slowDoor = () => { const d = C.DOORS[state.door]; return !!d && d.kind === 'sectional' && d.priced !== 'hs620'; };
 const doorDur = () => DOOR_BASE * (slowDoor() ? 2 : 1);
-const seqDur = () => 9 + (doorDur() - DOOR_BASE);                      // total length in seconds
+const FORK_DUR = 7.5;                                                   // forklift run: in, set down, out
+const forkOn = () => state.mode !== 'studio' && state.leveller !== 'none' && !!C.TRUCKS[state.truck] && (C.TRUCKS[state.truck].bedH || 0) >= 1;
+const levEnd = () => 9 + (doorDur() - DOOR_BASE);                      // leveller rests on the vehicle
+const seqDur = () => levEnd() + (forkOn() ? FORK_DUR : 0);             // total length in seconds
 const T = t => t * seqDur();                                            // slider position -> seconds
 const ph = (s, a, len) => Math.max(0, Math.min(1, (s - a) / len));      // phase helper
 const seqDoor = t => ph(T(t), 4.14, doorDur());
 const doorEnd = () => 4.14 + doorDur();
-const seqLev = t => state.leveller === 'stepped' ? ph(T(t), doorEnd() + .9, seqDur() - doorEnd() - .9) : ph(T(t), doorEnd(), seqDur() - doorEnd());
+const seqLev = t => state.leveller === 'stepped' ? ph(T(t), doorEnd() + .9, levEnd() - doorEnd() - .9) : ph(T(t), doorEnd(), levEnd() - doorEnd());
+const seqFork = t => forkOn() ? ph(T(t), levEnd(), FORK_DUR) : 0;
 let hintTimer = null, noticeTimer = null;
 function hint(msg) { $('dockLabel').textContent = msg; clearTimeout(hintTimer); hintTimer = setTimeout(() => applyDocking(docking), 2200); }
 function notice(title, text) { const n = $('cfgNotice'); $('cfgNoticeTitle').textContent = title; $('cfgNoticeText').textContent = text; n.hidden = false; clearTimeout(noticeTimer); noticeTimer = setTimeout(() => { n.hidden = true; }, 4200); }
@@ -148,8 +152,9 @@ function applyDocking(t, force = false) {
   const doorV = manDoor ? manDoor.value : door, levV = manLev ? manLev.value : lev;
   r.restraints.forEach(x => x.animate(restr)); r.doors.forEach(x => x.animate(doorV)); r.shelters.forEach(x => x.animate(shel)); r.levellers.forEach(x => x.animate(levV, arrive >= .999 && state.truck !== 'none'));
   r.lights.forEach(x => x.setOn(doorV > .3)); r.traffic.forEach(x => x.set(restr > .5 ? 'red' : 'green'));
+  const fork = seqFork(t); (r.forklifts || []).forEach(x => x.animate(fork, forkOn() && levV >= .999 && !manLev && arrive >= .999));
   updateManualButtons();
-  $('dockLabel').textContent = s < .45 ? 'Dock frei' : s < 3.42 ? 'Lkw fährt an' : s < 4.32 ? 'Wegfahrsicherung aktiv' : s < doorEnd() + .2 ? 'Tor öffnet' : t < .98 ? 'Überladebrücke fährt auf' : 'Verladung läuft';
+  $('dockLabel').textContent = s < .45 ? 'Dock frei' : s < 3.42 ? 'Lkw fährt an' : s < 4.32 ? 'Wegfahrsicherung aktiv' : s < doorEnd() + .2 ? 'Tor öffnet' : s < levEnd() - .1 ? 'Überladebrücke fährt auf' : forkOn() && s < seqDur() - .1 ? 'Stapler belädt' : 'Verladung läuft';
   invalidate();
 }
 
@@ -412,10 +417,10 @@ function start() {
   history.replaceState(null, '', location.pathname + location.search + hash());
   (async () => { try { await renderer.compileAsync(scene, camera); } catch (e) { } loop(performance.now()); })();
 }
-let pending = 5; const ready = () => { if (--pending === 0) start(); };
+let pending = 6; const ready = () => { if (--pending === 0) start(); };
 const gl = new GLTFLoader(manager);
-const MODEL_VER = '?v=8';
+const MODEL_VER = '?v=9';
 gl.load('assets/models/door_parts.glb' + MODEL_VER, g => { registerParts(g.scene); ready(); }, undefined, err => { console.warn('door parts missing', err); ready(); });
 // procedural library (parked trailer, fallback) and the photoscan-style semi-trailer (Hunyuan3D from a generated reference, prepared in Blender)
 gl.load('assets/models/vehicles.glb' + MODEL_VER, g => { registerVehicles(g.scene, M, { rename: { semi: 'semi_proc', rigid: 'rigid_proc', van: 'van_proc' } }); ready(); }, undefined, err => { console.warn('vehicles missing', err); ready(); });
-[QUALITY.mobile ? 'semi' : 'semi_hi', 'rigid', 'van'].forEach(n => gl.load(`assets/models/${n}.glb` + MODEL_VER, g => { registerVehicles(g.scene, M); ready(); }, undefined, err => { console.warn(n + ' missing', err); ready(); }));
+[QUALITY.mobile ? 'semi' : 'semi_hi', 'rigid', 'van', 'forklift'].forEach(n => gl.load(`assets/models/${n}.glb` + MODEL_VER, g => { registerVehicles(g.scene, M); ready(); }, undefined, err => { console.warn(n + ' missing', err); ready(); }));

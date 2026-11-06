@@ -718,9 +718,33 @@ function forklift(M, x, z, rot = 0) {
   [[-.55, .55], [.55, .55], [-.55, -.75], [.55, -.75]].forEach(([a, b]) => { const w = cyl(.3, .24, M.tyre, a, .3, b, 18); w.rotation.z = Math.PI / 2; g.add(w); });
   g.position.set(x, 0, z); g.rotation.y = rot; return g;
 }
+/* ---------------------------------------------------------------- Forklift loading run (Verladehalle only) */
+export function buildForklift({ M, truckRearZ, bedH, hingeZ, lipTipZ }) {
+  const g = new THREE.Group(); g.userData.dynamic = true;
+  const tpl = VEHICLES.forklift;
+  if (tpl) { const v = tpl.clone(); v.traverse(o => { if (/decal/.test(o.name)) o.visible = false; }); g.add(v); }
+  else g.add(forklift(M, 0, 0, 0));
+  const forkZ = tpl ? 2.35 : 1.0;                                                                 // where the forks start (pallet sits on them)
+  const load = new THREE.Group(); load.position.set(0, .16, forkZ + .6); g.add(load);              // euro pallet with boxes, 16 cm above the floor while driving
+  load.add(box(.8, .14, 1.2, M.pallet, 0, .07, 0)); load.add(box(.75, .95, 1.1, M.boxKraft, 0, .14 + .475, 0)); load.add(box(.7, .5, .55, M.boxKraft, .02, .14 + .95 + .25, -.25));
+  const dropped = load.clone(); dropped.visible = false; const holder = new THREE.Group(); holder.add(dropped);   // the pallet stays in the vehicle after the run
+  const z0 = -9.5, z1 = truckRearZ + 2.6, yIn = bedH + .03;                                       // start deep in the hall, stop 2.6 m inside the vehicle
+  const yAt = z => z <= hingeZ ? DOCK_H : z >= lipTipZ ? yIn : DOCK_H + (yIn - DOCK_H) * (z - hingeZ) / (lipTipZ - hingeZ);
+  const slope = Math.atan2(yIn - DOCK_H, lipTipZ - hingeZ);
+  function animate(u, active) {
+    g.visible = active; if (!active) { holder.visible = false; return; }
+    // 0-.42 drive in, .42-.58 set the pallet down, .58-1 reverse out empty
+    const a = seg(u, 0, .42), d = seg(u, .42, .58), b = seg(u, .58, 1);
+    const z = a < 1 ? z0 + (z1 - z0) * ease(a) : z1 + (z0 - z1) * ease(b);
+    g.position.set(0, yAt(z), z); g.rotation.x = (z > hingeZ && z < lipTipZ) ? -slope : 0;
+    load.position.y = .16 * (1 - ease(d)); load.visible = d < 1;
+    holder.visible = d >= 1; holder.position.set(0, yIn, z1); dropped.position.copy(load.position); dropped.position.y = 0; dropped.visible = true;
+  }
+  return { group: g, holder, animate };
+}
 /* ---------------------------------------------------------------- Whole warehouse */
 export function buildWarehouse({ mats, st, studio = false }) {
-  const { M } = mats; const g = new THREE.Group(); const rigs = { doors: [], levellers: [], shelters: [], restraints: [], lights: [], traffic: [], trucks: [] };
+  const { M } = mats; const g = new THREE.Group(); const rigs = { doors: [], levellers: [], shelters: [], restraints: [], lights: [], traffic: [], trucks: [], forklifts: [] };
   const w = st.w / 1000, h = st.h / 1000; const bays = studio ? 1 : st.bays; const lite = QUALITY.mobile;
   const pitch = Math.max(PITCH, w + 1.9); const W = studio ? w + 3.2 : bays * pitch + 8; const H = DOCK_H + HALL_H; const D = studio ? 6 : HALL_D;
   const x0 = -W / 2; const bayX = i => studio ? 0 : x0 + 4 + pitch * i + pitch / 2;
@@ -830,6 +854,11 @@ export function buildWarehouse({ mats, st, studio = false }) {
     // truck
     if (truckKind !== 'none' && (studio ? true : (st.truckBays === 'all' || i === (st.activeBay || 0)))) {
       const tr = buildTruck({ M, kind: truckKind }); tr.group.position.set(0, 0, 0); bay.add(tr.group); tr.animate(0); rigs.trucks.push({ ...tr, bay: i });
+      if (!studio && st.leveller !== 'none' && tr.bedH != null && tr.bedH >= 1) {   // Verladehalle only: a forklift loads the vehicle once the leveller rests on it
+        const T = TRUCKS[truckKind]; const plateEdgeZ = st.leveller === 'stepped' ? -WALL_T - .12 : 0; const len = (st.levellerLen || 2500) / 1000;
+        const fk = buildForklift({ M, truckRearZ: .34 + T.doorFaceZ, bedH: tr.bedH, hingeZ: plateEdgeZ - len, lipTipZ: .34 + T.doorFaceZ + .08 });
+        bay.add(fk.group); bay.add(fk.holder); fk.animate(0, false); rigs.forklifts.push(fk);
+      }
     }
   }
   // mandoor leaf
