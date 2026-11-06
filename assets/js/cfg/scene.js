@@ -1,7 +1,7 @@
 /* Loading Systems · Dock Studio scene: warehouse with N loading bays, doors, dock levellers, shelters, bumpers, restraints, lights, trucks.
    Units metres. X along the facade, Y up, +Z = yard (outside). Yard level y = 0, warehouse floor y = DOCK_H. Facade front face at z = 0. */
 import * as THREE from 'three';
-import { DOORS, LEVELLERS, SHELTERS, BUMPERS, TRUCKS, WINDOWS, FULLVISION, LIFT, LIFT_620 } from './catalog.js?v=25';
+import { DOORS, LEVELLERS, SHELTERS, BUMPERS, TRUCKS, WINDOWS, FULLVISION, LIFT, LIFT_620 } from './catalog.js?v=26';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 
@@ -403,6 +403,103 @@ export function numberPlate({ M, n, w, h }) {
   const m = new THREE.Mesh(new THREE.PlaneGeometry(.95, .95), new THREE.MeshStandardMaterial({ map: t, roughness: .6 })); m.position.set(0, DOCK_H + h + 1.6, .012); m.castShadow = false; return m;
 }
 
+/* ---------------------------------------------------------------- Landscape around the site
+   Terrain, access road with kerbs and pavement, chain-link fence with gate, hedges, light poles, tree impostors
+   (Poly Haven island_tree_01/02 rendered from 8 angles in Blender, see ~/LS-work/blender/tree_impostors.py), parked van. */
+const TREE_SPECIES = {   // frame metadata from the Blender render (frame_size = ortho width in metres, base_v = ground line from the frame centre)
+  t01: { file: 'tree_01.webp', frame: 5.2285, baseV: .4808, height: 5.03 },
+  t02: { file: 'tree_02.webp', frame: 4.3761, baseV: .3892, height: 3.41 },
+};
+const TREE_CACHE = new Map();
+function treeTextures(id) {
+  if (TREE_CACHE.has(id)) return TREE_CACHE.get(id);
+  const sp = TREE_SPECIES[id]; const base = new THREE.TextureLoader().load('assets/tex/' + sp.file); base.colorSpace = THREE.SRGBColorSpace; base.anisotropy = 8; base.wrapS = base.wrapT = THREE.ClampToEdgeWrapping;
+  const frames = []; for (let k = 0; k < 8; k++) { const t = base.clone(); t.repeat.set(.25, .5); t.offset.set((k % 4) * .25, k < 4 ? .5 : 0); t.needsUpdate = true; frames.push(t); }
+  TREE_CACHE.set(id, frames); return frames;
+}
+function seeded(seed) { let x = seed >>> 0; return () => { x = (x * 1664525 + 1013904223) >>> 0; return x / 4294967296; }; }
+/* cross-billboard trees as instanced quads: per species 8 frames x 2 orientations */
+export function buildTrees(spots) {
+  const g = new THREE.Group(); g.userData.noMerge = true;
+  const bySpecies = {};
+  spots.forEach(sp => { (bySpecies[sp.id] = bySpecies[sp.id] || []).push(sp); });
+  for (const [id, list] of Object.entries(bySpecies)) {
+    const S = TREE_SPECIES[id]; const frames = treeTextures(id); const quad = new THREE.PlaneGeometry(1, 1);
+    for (let k = 0; k < 8; k++) for (let o = 0; o < 2; o++) {
+      const use = list.filter(sp => ((sp.frame + o * 2) % 8) === k); if (!use.length) continue;
+      // the impostor frames were rendered in Blender under the same HDRI, so they carry their own lighting: unlit material, slightly lifted
+      const mat = new THREE.MeshBasicMaterial({ map: frames[k], alphaTest: .45, side: THREE.DoubleSide, color: 0xc8c8c8, fog: true });
+      const im = new THREE.InstancedMesh(quad, mat, use.length); im.castShadow = true; im.receiveShadow = false; im.userData.noMerge = true;
+      im.customDepthMaterial = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, map: frames[k], alphaTest: .45 });
+      const m = new THREE.Matrix4(), q = new THREE.Quaternion(), pos = new THREE.Vector3(), scl = new THREE.Vector3();
+      use.forEach((sp, i) => { const size = S.frame * sp.scale; pos.set(sp.x, S.baseV * size, sp.z); q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), sp.rot + o * Math.PI / 2); scl.set(size, size, 1); m.compose(pos, q, scl); im.setMatrixAt(i, m); });
+      im.instanceMatrix.needsUpdate = true; g.add(im);
+    }
+  }
+  return g;
+}
+function chainLinkTexture() {
+  if (chainLinkTexture.t) return chainLinkTexture.t;
+  const c = document.createElement('canvas'); c.width = c.height = 256; const ctx = c.getContext('2d'); ctx.clearRect(0, 0, 256, 256);
+  ctx.strokeStyle = '#c9ced2'; ctx.lineWidth = 3; const p = 32;   // 256 px = 0.5 m, mesh 62 mm
+  for (let i = -8; i < 16; i++) { ctx.beginPath(); ctx.moveTo(i * p, 0); ctx.lineTo(i * p + 256, 256); ctx.stroke(); ctx.beginPath(); ctx.moveTo(i * p + 256, 0); ctx.lineTo(i * p, 256); ctx.stroke(); }
+  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; chainLinkTexture.t = t; return t;
+}
+export function buildLandscape({ M, W, yardD, x0, bays, bayX, lite = false }) {
+  const g = new THREE.Group(); const rnd = seeded(4711);
+  const EX = 1600;   // terrain extent: reaches the fog so the HDRI ground never shows
+  // terrain: near meadow (fine) + far meadow (coarse) with gentle undulation beyond 90 m
+  const near = plane(W + 160, yardD + 160, M.meadow, 0, -.012, yardD / 2 + 20); g.add(near);
+  const farGeo = new THREE.PlaneGeometry(EX, EX, 160, 160); const pa = farGeo.attributes.position;
+  for (let i = 0; i < pa.count; i++) { const x = pa.getX(i), y = pa.getY(i); const d = Math.hypot(x, y); const h = d > 110 ? (Math.sin(x * .021) * Math.cos(y * .017) * 1.6 + Math.sin(x * .07 + y * .05) * .5) * Math.min(1, (d - 110) / 80) : 0; pa.setZ(i, h); }
+  farGeo.computeVertexNormals(); const uv = farGeo.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * EX, uv.getY(i) * EX);
+  const far = new THREE.Mesh(farGeo, M.meadowFar); far.rotation.x = -Math.PI / 2; far.position.set(0, -.03, 20); far.receiveShadow = true; g.add(far);
+  // gravel maintenance strip along the facade sides and the back of the building
+  g.add(plane(W + 6, 2.2, M.gravel, 0, -.005, -HALL_D - 1.1)); [-1, 1].forEach(s => g.add(plane(2.2, HALL_D + 2.4, M.gravel, s * (W / 2 + 1.1), -.005, -HALL_D / 2 + .1)));
+  // kerb around the asphalt apron and a pavement in front of the fence line
+  const halfW = W / 2 + 30;
+  g.add(box(2 * halfW, .14, .25, M.kerb, 0, .06, yardD + .12, { shadow: false }));
+  [-1, 1].forEach(s => g.add(box(.25, .14, yardD, M.kerb, s * halfW, .06, yardD / 2, { shadow: false })));
+  // access road: 7 m wide, from the yard gate on the right side out to the horizon, with edge lines and kerbs
+  const rx = W / 2 + 16, roadW = 7, roadL = EX / 2 - yardD;
+  g.add(plane(roadW, roadL, M.road, rx, .002, yardD + roadL / 2));
+  [-1, 1].forEach(s => { g.add(plane(.12, roadL, M.roadLine, rx + s * (roadW / 2 - .3), .006, yardD + roadL / 2)); g.add(box(.3, .12, roadL, M.kerb, rx + s * (roadW / 2 + .15), .05, yardD + roadL / 2, { shadow: false })); });
+  for (let z = yardD + 2; z < yardD + roadL; z += 12) g.add(plane(.12, 6, M.roadLine, rx, .006, z + 3));
+  g.add(plane(2.0, roadL, M.pavers, rx - roadW / 2 - 1.3, .004, yardD + roadL / 2));   // pavement on the yard side of the road
+  // turn-in from the road into the yard (asphalt patch over the kerb line)
+  g.add(plane(roadW + 6, 6, M.road, rx, .003, yardD + 3));
+  // chain-link fence (2 m) along the yard front and sides, gate opening at the road
+  const fenceMat = new THREE.MeshStandardMaterial({ map: chainLinkTexture(), transparent: true, alphaTest: .3, side: THREE.DoubleSide, roughness: .5, metalness: .6, color: 0xd8dcdf });
+  const fence = (x1, z1, x2, z2) => { const len = Math.hypot(x2 - x1, z2 - z1); const geo = new THREE.PlaneGeometry(len, 2.0); const u = geo.attributes.uv; for (let i = 0; i < u.count; i++) u.setXY(i, u.getX(i) * len * 2, u.getY(i) * 4);
+    const m = new THREE.Mesh(geo, fenceMat); m.position.set((x1 + x2) / 2, 1.0, (z1 + z2) / 2); m.rotation.y = Math.atan2(x2 - x1, z2 - z1) + Math.PI / 2; m.castShadow = false; m.userData.noMerge = true; g.add(m);
+    const rail = box(len, .05, .05, M.poleGalv, 0, 0, 0); rail.position.copy(m.position); rail.position.y = 2.0; rail.rotation.y = m.rotation.y; g.add(rail);   // top rail
+    for (let t = 0; t <= len + .01; t += 2.5) { const x = x1 + (x2 - x1) * t / len, z = z1 + (z2 - z1) * t / len; g.add(cyl(.03, 2.1, M.poleGalv, x, 1.05, z, 10)); } };
+  const gateX1 = rx - roadW / 2 - 2, gateX2 = rx + roadW / 2 + 1;
+  fence(-halfW, yardD + .6, gateX1, yardD + .6); fence(gateX2, yardD + .6, halfW, yardD + .6);
+  fence(-halfW, yardD + .6, -halfW, -HALL_D - 6); fence(halfW, yardD + .6, halfW, -HALL_D - 6);
+  // sliding gate, open: parked along the fence inside the yard
+  const gate = new THREE.Group(); gate.position.set(gateX1 - 6, 0, yardD - .2); g.add(gate);
+  gate.add(box(11, .08, .08, M.poleGalv, 5.5, 2.0, 0)); gate.add(box(11, .08, .08, M.poleGalv, 5.5, .12, 0)); for (let x = 0; x <= 11; x += .14) gate.add(box(.03, 1.9, .03, M.poleGalv, x, 1.06, 0, { shadow: false }));
+  gate.add(box(.16, 2.4, .16, M.poleGalv, 11.2, 1.2, 0)); gate.add(box(.16, 2.4, .16, M.poleGalv, -.2, 1.2, 0));
+  // hedge inside the fence along the front (not across the gate) and clipped bushes near the road
+  for (let x = -halfW + 2; x < halfW - 2; x += 1.6) { if (x > gateX1 - 8 && x < gateX2 + 2) continue; const h = .9 + rnd() * .35; const b = rbox(1.7, h, .9 + rnd() * .3, .2, M.hedge, x, h / 2 - .05, yardD - 1.2); b.rotation.y = (rnd() - .5) * .3; g.add(b); }
+  // light poles along the yard front and the road
+  const pole = (x, z, rot) => { g.add(cyl(.07, 8, M.poleGalv, x, 4, z, 12)); const arm = box(1.6, .08, .1, M.poleGalv, x, 8, z); arm.rotation.y = rot; arm.translateX(-.8); g.add(arm); const head = box(.6, .08, .26, M.dark, 0, 0, 0); head.position.set(x, 7.95, z); head.rotation.y = rot; head.translateX(-1.5); g.add(head); };
+  for (let x = -halfW + 8; x < halfW - 4; x += 22) pole(x, yardD - 3, 0);
+  for (let z = yardD + 20; z < yardD + 200; z += 32) pole(rx + roadW / 2 + 1.2, z, Math.PI / 2);
+  // car park on the left with white lines and a parked van
+  const px = -W / 2 - 14; for (let i = 0; i < 6; i++) g.add(plane(.1, 5, M.roadLine, px + i * 2.6, .005, yardD - 4));
+  const van = (VEHICLES.van && VEHICLES.van.clone()) || null; if (van) { van.position.set(px + 1.3 + 2.6 * 2, 0, yardD - 1.6); van.rotation.y = Math.PI; van.traverse(o => { if (o.isMesh) { o.castShadow = true; o.userData.shared = true; } }); van.userData.noMerge = true; g.add(van); }
+  // trees: a belt of mixed broadleaf trees 60-150 m out, denser behind the hall, singles along the road and in the corners
+  const spots = [];
+  const add = (x, z, big) => spots.push({ id: rnd() < .55 ? 't01' : 't02', x, z, frame: Math.floor(rnd() * 8), rot: rnd() * Math.PI, scale: (big ? 2.0 : 1.5) + rnd() * .9 });
+  for (let i = 0; i < (lite ? 90 : 180); i++) { const a = rnd() * Math.PI * 2; const r = 70 + rnd() * 110; const x = Math.cos(a) * r, z = 20 + Math.sin(a) * r; if (z > yardD + 4 && Math.abs(x - rx) < roadW + 6) continue; if (z > -HALL_D - 4 && z < yardD + 4 && Math.abs(x) < halfW + 6) continue; add(x, z, true); }
+  for (let i = 0; i < (lite ? 20 : 40); i++) { const a = rnd() * Math.PI * 2; const r = 160 + rnd() * 120; add(Math.cos(a) * r, 20 + Math.sin(a) * r, true); }
+  [[-halfW - 6, yardD + 8], [-halfW - 9, yardD + 24], [halfW + 6, yardD + 10], [rx - roadW / 2 - 7, yardD + 40], [rx - roadW / 2 - 8, yardD + 75], [rx + roadW / 2 + 9, yardD + 58], [-halfW - 5, -HALL_D - 10], [halfW + 7, -HALL_D - 14]].forEach(([x, z]) => add(x, z, false));
+  g.add(buildTrees(spots));
+  return g;
+}
+
 /* ---------------------------------------------------------------- LS control units (930 door / 932 dock leveller), after the pictures on loading-systems.com/en-gb/products/controls */
 const CU = { housing: null, panel: null, logoImg: null, btnTex: new Map() };
 function cuIcon(kind) {
@@ -592,8 +689,7 @@ export function buildWarehouse({ mats, st, studio = false }) {
   g.add(plane(W + (studio ? 0 : 60), yardD, M.asphalt, 0, 0, yardD / 2));
   if (!studio) {
     for (let i = 0; i < bays; i++) [-1, 1].forEach(s => g.add(plane(.12, 18, M.yellowStripe, bayX(i) + s * (1.5), .004, 9.5)));
-    g.add(plane(W + 60, 60, M.lawn, 0, -.01, yardD + 30)); g.add(box(W + 60, .14, .2, M.plinth, 0, .07, yardD, { shadow: false }));
-    g.add(box(W + 60, 1.0, .8, M.hedge, 0, .5, yardD + 2.5));
+    g.add(buildLandscape({ M, W, yardD, x0, bays, bayX, lite }));
   }
   // a parked trailer (without tractor) at the far end of the yard for scale
   if (!studio && bays > 1 && !lite) { const pt = buildTruck({ M, kind: 'truck', trailerOnly: true }); pt.group.position.set(x0 - 6, 0, 14); pt.group.rotation.y = .55; g.add(pt.group); }

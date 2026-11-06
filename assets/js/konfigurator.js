@@ -9,9 +9,9 @@ import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import * as C from './cfg/catalog.js?v=25';
-import { createMaterials, TEX } from './cfg/materials.js?v=25';
-import { buildWarehouse, buildStudio, dispose, DOCK_H, ease, registerParts, registerVehicles, mergeStatic, QUALITY } from './cfg/scene.js?v=25';
+import * as C from './cfg/catalog.js?v=26';
+import { createMaterials, TEX } from './cfg/materials.js?v=26';
+import { buildWarehouse, buildStudio, dispose, DOCK_H, ease, registerParts, registerVehicles, mergeStatic, QUALITY } from './cfg/scene.js?v=26';
 
 const $ = id => document.getElementById(id);
 const q = new URLSearchParams(location.search);
@@ -59,8 +59,9 @@ let dirty = true, redrawUntil = 0; const invalidate = () => { dirty = true; };
 let assetsReady = false; const manager = new THREE.LoadingManager(() => { assetsReady = true; redrawUntil = performance.now() + 2500; finishLoading(); }, () => { redrawUntil = Math.max(redrawUntil, performance.now() + 800); });
 const mats = createMaterials(renderer, manager, { mobile: QUALITY.mobile }); const { M } = mats;
 const scene = new THREE.Scene();
-const sky = mats.tx('sky.jpg', { srgb: true, wrap: false }); sky.mapping = THREE.EquirectangularReflectionMapping; const SKY_ROT = 1.95;
-let skyEnv = sky; new RGBELoader(manager).load(TEX + 'sky_1k.hdr', t => { t.mapping = THREE.EquirectangularReflectionMapping; skyEnv = t; if (state.mode !== 'studio') scene.environment = t; invalidate(); });
+// Sky: Poly Haven HDRI 'abandoned_hopper_terminal_04' (CC0): 4k tonemapped JPEG as the visible background, 1k HDR for lighting/reflections
+const sky = mats.tx('env_yard.jpg', { srgb: true, wrap: false }); sky.mapping = THREE.EquirectangularReflectionMapping; const SKY_ROT = 1.95;
+let skyEnv = sky; new RGBELoader(manager).load(TEX + 'env_yard_1k.hdr', t => { t.mapping = THREE.EquirectangularReflectionMapping; skyEnv = t; if (state.mode !== 'studio') scene.environment = t; invalidate(); });
 scene.background = sky; scene.environment = sky; scene.environmentIntensity = .55; scene.backgroundIntensity = .9; scene.backgroundRotation.set(0, SKY_ROT, 0); scene.environmentRotation.set(0, SKY_ROT, 0);
 const pmrem = new THREE.PMREMGenerator(renderer); const studioEnv = pmrem.fromScene(new RoomEnvironment(), .04).texture; pmrem.dispose();
 const sunDir = new THREE.Vector3(.555, .742, .377).applyAxisAngle(new THREE.Vector3(0, 1, 0), -SKY_ROT).normalize();
@@ -84,7 +85,7 @@ const sun = new THREE.DirectionalLight(0xfff1dc, 3.2); sun.position.copy(sunDir)
 Object.assign(sun.shadow.camera, { near: 5, far: 220, left: -60, right: 60, top: 60, bottom: -60 }); sun.shadow.camera.updateProjectionMatrix(); sun.shadow.bias = -.0003; sun.shadow.normalBias = .04;
 const fill = new THREE.DirectionalLight(0xeaf2ff, .5); fill.position.set(-20, 12, 40);
 const hemi = new THREE.HemisphereLight(0xdde8ff, 0x6f7a63, .08); scene.add(sun, fill, hemi);
-scene.fog = new THREE.Fog(0xc9d2da, 120, 320);
+scene.fog = new THREE.Fog(0xcfd9e2, 220, 900);
 const studioKey = new THREE.DirectionalLight(0xffffff, 2.0); studioKey.position.set(-8, 14, 12); studioKey.castShadow = true; studioKey.shadow.mapSize.set(shadowSize, shadowSize); Object.assign(studioKey.shadow.camera, { near: 1, far: 60, left: -14, right: 14, top: 16, bottom: -4 }); studioKey.shadow.camera.updateProjectionMatrix();
 const studioFill = new THREE.DirectionalLight(0xe8f0ff, .8); studioFill.position.set(10, 6, 10); const studioLights = new THREE.Group(); studioLights.add(studioKey, studioFill); scene.add(studioLights);
 
@@ -98,7 +99,7 @@ function buildWorld() {
   const studio = state.mode === 'studio';
   wh = buildWarehouse({ mats, st: state, studio }); dims = wh.dims; window.__mergeInfo = mergeStatic(wh.group); world.add(wh.group);
   if (studio) { studioGroup = buildStudio({ M, dims }); world.add(studioGroup); }
-  scene.background = studio ? new THREE.Color(0xe9eaec) : sky; scene.environment = studio ? studioEnv : skyEnv; scene.fog = studio ? null : new THREE.Fog(0xc9d2da, 120, 320);
+  scene.background = studio ? new THREE.Color(0xe9eaec) : sky; scene.environment = studio ? studioEnv : skyEnv; scene.fog = studio ? null : new THREE.Fog(0xcfd9e2, 220, 900);
   scene.environmentIntensity = studio ? .75 : .55; sun.visible = !studio; fill.visible = !studio; hemi.visible = !studio; studioLights.visible = studio; renderer.toneMappingExposure = studio ? 1.1 : 1.0;
   applyDocking(docking, true); invalidate();
 }

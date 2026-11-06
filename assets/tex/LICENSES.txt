@@ -6,3 +6,8 @@ Texture sources (all CC0 / public domain):
 - ph_pvcseam_*  : Poly Haven rubber_tiles (https://polyhaven.com/a/rubber_tiles), CC0
 - hf_*          : generated material scans (Higgsfield), project assets
 - sky_1k.hdr    : Poly Haven HDRI, CC0
+
+Landscape (added 06.11.2026), all CC0 from Poly Haven (polyhaven.com):
+- HDRI abandoned_hopper_terminal_04 -> env_yard.jpg (4k, tonemapped background), env_yard_1k.hdr (lighting)
+- textures leafy_grass, grass_ground, asphalt_02, concrete_pavers_02, bicolour_gravel (1k jpg, diff/nor_gl/rough)
+- models island_tree_01, island_tree_02 -> tree_01.webp, tree_02.webp (8-view impostor atlases rendered in Blender, ~/LS-work/blender/tree_impostors.py)
