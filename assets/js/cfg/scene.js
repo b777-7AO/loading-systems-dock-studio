@@ -284,7 +284,7 @@ export function buildLeveller({ M, st, w, bedH, truckRearZ = null }) {
   // pit frame angle flush in the floor
   pit.add(box(pw + gap + .04, .004, len + gap + .02, M.galvDark, 0, .003, -(len + gap) / 2 + .01, { shadow: false }));   // thin galvanised pit frame angle
   pit.add(box(pw + gap + .08, .012, .14, M.galvDark, 0, .006, -len - .03, { shadow: false }));   // rear hinge cover: closes the gap behind the plate, floor runs through
-  const hinge = new THREE.Group(); hinge.position.set(0, -.02, -len); hinge.userData.dynamic = true; pit.add(hinge);   // plate top 1 cm above the pit frame at rest (frame boxes sit at +.001..+.007), so the tread surface is always visible
+  const hinge = new THREE.Group(); hinge.name = 'leveller_hinge'; hinge.position.set(0, -.02, -len); hinge.userData.dynamic = true; pit.add(hinge);   // plate top 1 cm above the pit frame at rest (frame boxes sit at +.001..+.007), so the tread surface is always visible
   const plate = uvMetres(box(pw, .06, len, M.levellerPlate, 0, 0, len / 2)); hinge.add(plate);
   // hazard marking across the lip hinge and on the lip, as on the 232NG / 233NG
   if (!stepped) hinge.add(box(pw, .004, .14, M.hazard, 0, .032, len - .08, { shadow: false }));   // no yellow marking on a stepped dock
@@ -301,10 +301,10 @@ export function buildLeveller({ M, st, w, bedH, truckRearZ = null }) {
   mergeStatic(hinge); g.add(pit);
   const level = DOCK_H; const target = bedH == null ? DOCK_H : bedH + .02;
   const ext = truckRearZ == null ? lipLen * .5 : Math.min(lipLen - .05, truckRearZ + .08 - plateEdgeZ);   // lip reach from the plate edge: 8 cm into the vehicle (capped by the lip length)
-  function animate(t) {
+  function animate(t, docked = true) {
     const r = seg(t, 0, .45), o = seg(t, .45, .75), lo = seg(t, .75, 1);
     const upA = .16;
-    const dh = target - level; const downA = Math.atan2(dh, L.lip === 'swing' ? len : len + ext);   // telescopic: the lip tip (plate + extension) rests on the vehicle floor
+    const dh = (docked ? target : level) - level; /* no vehicle to rest on: the platform comes back to floor level, never below */ const downA = Math.atan2(dh, L.lip === 'swing' ? len : len + ext);   // telescopic: the lip tip (plate + extension) rests on the vehicle floor
     hinge.rotation.x = -(upA * ease(r)) + (upA - downA) * ease(lo);
     if (L.lip === 'swing') lipPivot.rotation.x = (Math.PI / 2 - .08) * (1 - ease(o)) + (-hinge.rotation.x) * ease(lo);
     else { lip.position.z = ext * ease(o); lipPivot.rotation.x = 0; }   // no articulation: the lip extends and retracts in line with the platform

@@ -11,7 +11,7 @@ import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import * as C from './cfg/catalog.js?v=32';
 import { createMaterials, TEX } from './cfg/materials.js?v=29';
-import { buildWarehouse, buildStudio, dispose, DOCK_H, ease, registerParts, registerVehicles, mergeStatic, QUALITY } from './cfg/scene.js?v=49';
+import { buildWarehouse, buildStudio, dispose, DOCK_H, ease, registerParts, registerVehicles, mergeStatic, QUALITY } from './cfg/scene.js?v=50';
 
 const $ = id => document.getElementById(id);
 const q = new URLSearchParams(location.search);
@@ -146,7 +146,7 @@ function applyDocking(t, force = false) {
   const rearDoors = stepped ? ph(s, doorEnd(), .9) : ph(s, .27, 1.53);
   r.trucks.forEach(tr => { const start = 31, end = .34; const z = start + (end - start) * arrive; const prev = tr.group.position.z; tr.group.position.z = z; tr.animate(prev - z); if (tr.doors) tr.doors(rearDoors, stepped ? Math.PI * .5 : Math.PI * 1.5); });
   const doorV = manDoor ? manDoor.value : door, levV = manLev ? manLev.value : lev;
-  r.restraints.forEach(x => x.animate(restr)); r.doors.forEach(x => x.animate(doorV)); r.shelters.forEach(x => x.animate(shel)); r.levellers.forEach(x => x.animate(levV));
+  r.restraints.forEach(x => x.animate(restr)); r.doors.forEach(x => x.animate(doorV)); r.shelters.forEach(x => x.animate(shel)); r.levellers.forEach(x => x.animate(levV, arrive >= .999 && state.truck !== 'none'));
   r.lights.forEach(x => x.setOn(doorV > .3)); r.traffic.forEach(x => x.set(restr > .5 ? 'red' : 'green'));
   updateManualButtons();
   $('dockLabel').textContent = s < .45 ? 'Dock frei' : s < 3.42 ? 'Lkw fährt an' : s < 4.32 ? 'Wegfahrsicherung aktiv' : s < doorEnd() + .2 ? 'Tor öffnet' : t < .98 ? 'Überladebrücke fährt auf' : 'Verladung läuft';
