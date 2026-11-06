@@ -16,7 +16,7 @@ import { buildWarehouse, buildStudio, dispose, DOCK_H, ease, registerParts, regi
 const $ = id => document.getElementById(id);
 const q = new URLSearchParams(location.search);
 const mobileMQ = window.matchMedia('(max-width: 900px)'); const coarse = !window.matchMedia('(pointer: fine)').matches;
-let mobile = mobileMQ.matches; QUALITY.mobile = mobile || coarse;
+let mobile = mobileMQ.matches; QUALITY.mobile = coarse;   // render quality follows the device (touch = phone/tablet), not the window width: a narrow desktop window keeps full quality
 
 /* ------------------------------------------------------------------ State */
 const state = {
@@ -55,7 +55,7 @@ readHash();
 const canvas = $('cfgCanvas'), wrap = $('canvasWrap'), cfgRoot = document.querySelector('.cfg');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
 const useAO = !q.has('noao') && !coarse && !mobile && Math.min(innerWidth, innerHeight) > 600;
-renderer.setPixelRatio(Math.min(devicePixelRatio, QUALITY.mobile ? 1.3 : 1.5)); renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap; renderer.localClippingEnabled = true;
+renderer.setPixelRatio(Math.min(devicePixelRatio, QUALITY.mobile ? 1.3 : 2)); renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap; renderer.localClippingEnabled = true;
 renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.0; renderer.outputColorSpace = THREE.SRGBColorSpace;
 let dirty = true, redrawUntil = 0; const invalidate = () => { dirty = true; };
 let assetsReady = false; const manager = new THREE.LoadingManager(() => { assetsReady = true; redrawUntil = performance.now() + 2500; finishLoading(); }, () => { redrawUntil = Math.max(redrawUntil, performance.now() + 800); });
@@ -73,16 +73,16 @@ controls.addEventListener('change', invalidate);
 class AOPass extends GTAOPass { overrideVisibility() { super.overrideVisibility(); this.scene.traverse(o => { if (o.userData.cutout) o.visible = false; }); } }
 let composer = null, aoPass = null, aoOn = useAO;
 if (useAO) {
-  composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(1, 1, { samples: 4, type: THREE.HalfFloatType }));
+  composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(1, 1, { samples: QUALITY.mobile ? 4 : 8, type: THREE.HalfFloatType }));
   composer.addPass(new RenderPass(scene, camera));
-  aoPass = new AOPass(scene, camera, 1, 1, {}, { radius: .4, distanceExponent: 1, thickness: 1, scale: 1, samples: 8, distanceFallOff: 1, screenSpaceRadius: false }, { lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 4, radiusExponent: 1, rings: 2, samples: 8 });
-  aoPass.output = GTAOPass.OUTPUT.Default; aoPass.blendIntensity = .9; composer.addPass(aoPass);
-  const lens = new ShaderPass({ uniforms: { tDiffuse: { value: null }, uTime: { value: 0 } }, vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-    fragmentShader: 'uniform sampler2D tDiffuse; uniform float uTime; varying vec2 vUv; float hash(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233)) + uTime) * 43758.5453); } void main(){ vec4 c = texture2D(tDiffuse, vUv); vec2 d = vUv - .5; float v = 1.0 - .26 * smoothstep(.25, 1.1, dot(d, d) * 2.2); float g = (hash(vUv * 1200.0) - .5) * .01; gl_FragColor = vec4(c.rgb * v + g, c.a); }' });
+  aoPass = new AOPass(scene, camera, 1, 1, {}, { radius: .35, distanceExponent: 1, thickness: 1, scale: 1, samples: QUALITY.mobile ? 8 : 16, distanceFallOff: 1, screenSpaceRadius: false }, { lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 5, radiusExponent: 1, rings: 3, samples: QUALITY.mobile ? 8 : 16 });
+  aoPass.output = GTAOPass.OUTPUT.Default; aoPass.blendIntensity = .75; composer.addPass(aoPass);
+  const lens = new ShaderPass({ uniforms: { tDiffuse: { value: null }, uTime: { value: 0 }, uTexel: { value: new THREE.Vector2(1 / 1920, 1 / 1080) }, uSharpen: { value: QUALITY.mobile ? .12 : .22 } }, vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+    fragmentShader: 'uniform sampler2D tDiffuse; uniform float uTime; uniform vec2 uTexel; uniform float uSharpen; varying vec2 vUv; void main(){ vec4 c = texture2D(tDiffuse, vUv); vec3 n = texture2D(tDiffuse, vUv + vec2(uTexel.x, 0.)).rgb + texture2D(tDiffuse, vUv - vec2(uTexel.x, 0.)).rgb + texture2D(tDiffuse, vUv + vec2(0., uTexel.y)).rgb + texture2D(tDiffuse, vUv - vec2(0., uTexel.y)).rgb; vec3 sharp = c.rgb + (c.rgb - n * .25) * uSharpen; vec2 d = vUv - .5; float v = 1.0 - .16 * smoothstep(.3, 1.1, dot(d, d) * 2.2); gl_FragColor = vec4(max(sharp, 0.) * v, c.a); }' });
   composer.addPass(lens); composer.addPass(new OutputPass()); window.__lens = lens;
 }
 function draw() { if (composer && aoOn) composer.render(); else renderer.render(scene, camera); }
-const shadowSize = QUALITY.mobile ? 1024 : 2048;
+const shadowSize = QUALITY.mobile ? 1024 : 4096;
 const sun = new THREE.DirectionalLight(0xfff1dc, 3.2); sun.position.copy(sunDir).multiplyScalar(80); sun.castShadow = true; sun.shadow.mapSize.set(shadowSize, shadowSize);
 Object.assign(sun.shadow.camera, { near: 5, far: 220, left: -60, right: 60, top: 60, bottom: -60 }); sun.shadow.camera.updateProjectionMatrix(); sun.shadow.bias = -.0003; sun.shadow.normalBias = .04;
 const fill = new THREE.DirectionalLight(0xeaf2ff, .5); fill.position.set(-20, 12, 40);
@@ -221,19 +221,19 @@ document.querySelectorAll('#stepNav button').forEach(b => b.addEventListener('cl
   sec.classList.remove('is-collapsed'); if (mobile && sheetState !== 'full') setSheet('full');
   setTimeout(() => { $('panelScroll').scrollTo({ top: sec.offsetTop - 8, behavior: 'smooth' }); }, mobile ? 200 : 0);
 }));
-mobileMQ.addEventListener('change', e => { mobile = e.matches; QUALITY.mobile = mobile || coarse; setSheet('peek', false); });
+mobileMQ.addEventListener('change', e => { mobile = e.matches; setSheet('peek', false); });
 
 /* ------------------------------------------------------------------ Loop */
 let visH = 1;
 function resize() {
-  const w = wrap.clientWidth, h = wrap.clientHeight; if (!w || !h) return; renderer.setSize(w, h, false); if (composer) composer.setSize(w, h);
+  const w = wrap.clientWidth, h = wrap.clientHeight; if (!w || !h) return; renderer.setSize(w, h, false); if (composer) composer.setSize(w, h); if (window.__lens) { const pr = renderer.getPixelRatio(); window.__lens.uniforms.uTexel.value.set(1 / (w * pr), 1 / (h * pr)); }
   const sheet = sheetPx(); visH = Math.max(h * .35, h - sheet);
   camera.aspect = w / visH; camera.fov = mobile && w < visH ? 50 : 38; if (sheet > 0) camera.setViewOffset(w, Math.round(visH), 0, 0, w, h); else camera.clearViewOffset(); camera.updateProjectionMatrix(); invalidate();
 }
 new ResizeObserver(resize).observe(wrap); resize();
 let overlayDone = false; const T0 = performance.now(); const perf = { samples: [], last: 0, adjusted: false };
 function finishLoading() { if (overlayDone || !wh) return; overlayDone = true; controls.update(); draw(); $('cfgLoading').classList.add('done'); const hint = $('cfgHint'); hint.hidden = false; const hide = () => { hint.hidden = true; canvas.removeEventListener('pointerdown', hide); }; canvas.addEventListener('pointerdown', hide); setTimeout(hide, 6000); redrawUntil = performance.now() + 2500; }
-function adaptQuality(now) { if (perf.adjusted) return; if (perf.last) perf.samples.push(now - perf.last); perf.last = now; if (perf.samples.length < 40) return; const avg = perf.samples.slice(5).reduce((a, b) => a + b, 0) / 35; perf.adjusted = true; window.__avgFrame = avg; if (avg > 45) { aoOn = false; renderer.setPixelRatio(1); if (composer) composer.setPixelRatio(1); resize(); } }
+function adaptQuality(now) { if (perf.adjusted) return; if (perf.last) perf.samples.push(now - perf.last); perf.last = now; if (perf.samples.length < 40) return; const avg = perf.samples.slice(5).reduce((a, b) => a + b, 0) / 35; perf.adjusted = true; window.__avgFrame = avg; if (avg > 60) { aoOn = false; renderer.setPixelRatio(1); if (composer) composer.setPixelRatio(1); resize(); } else if (avg > 34 && !QUALITY.mobile) { renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5)); if (composer) composer.setPixelRatio(renderer.getPixelRatio()); resize(); } }
 const _v = new THREE.Vector3();
 function place(el, x, y, z) { _v.set(x, y, z).project(camera); const w = wrap.clientWidth; const px = (_v.x + 1) / 2 * w, py = (1 - _v.y) / 2 * wrap.clientHeight; const vis = _v.z < 1 && px > 40 && px < w - 40 && py > 70 && py < visH - 60; el.hidden = !vis; if (vis) { el.style.left = px + 'px'; el.style.top = py + 'px'; } }
 function labels() { const cx = state.mode === 'studio' ? 0 : dims.bayX(state.activeBay); place($('dimLabel'), cx, DOCK_H + dims.h + .55, .1); }
@@ -411,7 +411,7 @@ $('cfgHint').querySelector('span').textContent = coarse ? 'Ein Finger dreht, zwe
 document.addEventListener('visibilitychange', () => { if (!document.hidden) invalidate(); });
 
 /* ------------------------------------------------------------------ Go */
-window.__cfg = { camera, controls, state, scene, world, renderer, dims: () => dims, update, setMode, goView, setDock, applyDocking, setSheet, invalidate, THREE, price: priceDoor, stopCam: () => { camTween = null; } };
+window.__cfg = { draw, camera, controls, state, scene, world, renderer, dims: () => dims, update, setMode, goView, setDock, applyDocking, setSheet, invalidate, THREE, price: priceDoor, stopCam: () => { camTween = null; } };
 function start() {
   setSheet('peek', false);
   buildWorld(); renderUI(); setMode(state.mode === 'studio' ? 'studio' : 'yard');
