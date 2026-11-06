@@ -269,7 +269,7 @@ export function buildLeveller({ M, st, w, bedH, truckRearZ = null }) {
   const stepped = !!L.stepped; const G = 0;   // stepped dock: the leveller stays in its normal place; the step is the lower strip under the door, leveller-wide
   const len = (st.levellerLen || 2500) / 1000, pw = (st.levellerW || 2000) / 1000; const lipLen = L.lipLen;
   // pit box behind the facade, plate hinged at the rear
-  const plateEdgeZ = -WALL_T - .12;   // plate front edge 6 cm behind the door leaf (leaf at -WALL_T-.06)
+  const plateEdgeZ = stepped ? -WALL_T - .12 : 0;   // plate front edge at the dock edge (the door closes on the platform); stepped dock: behind the step strip
   const pit = new THREE.Group(); pit.position.set(0, DOCK_H, plateEdgeZ);
   if (stepped) {   // the step: a leveller-wide strip in front of the plate, 50 cm below the hall floor, closed by the T extension of the door
     const zw = pw + .1, zd = .12 + .02, zy = -.5; const zone = new THREE.Group(); zone.position.set(0, DOCK_H, -WALL_T); g.add(zone);
@@ -744,7 +744,11 @@ export function buildWarehouse({ mats, st, studio = false }) {
     if (o.notch) { const n = o.notch;   // stepped dock: concrete dock face under the door too, only the notch stays open
       g.add(box(n.x, DOCK_H + .02, .06, M.plinth, ox + n.x / 2, (DOCK_H + .02) / 2, .03)); g.add(box(o.w - n.x - n.w, DOCK_H + .02, .06, M.plinth, ox + n.x + n.w + (o.w - n.x - n.w) / 2, (DOCK_H + .02) / 2, .03));
       g.add(box(n.w, DOCK_H - n.d, .06, M.plinth, ox + n.x + n.w / 2, (DOCK_H - n.d) / 2, .03)); }
-    else g.add(box(o.w, DOCK_H + .02, .06, M.plinth, ox + o.w / 2, (DOCK_H + .02) / 2, .03));   // concrete face under the door
+    else if (st.leveller !== 'none') {   // leveller runs to the dock edge: the face is lowered over the plate width so the platform front shows at the edge
+      const pw = (st.levellerW || 2000) / 1000 + .08, sx = (o.w - pw) / 2;
+      g.add(box(sx, DOCK_H + .02, .06, M.plinth, ox + sx / 2, (DOCK_H + .02) / 2, .03)); g.add(box(sx, DOCK_H + .02, .06, M.plinth, ox + o.w - sx / 2, (DOCK_H + .02) / 2, .03));
+      g.add(box(pw, DOCK_H - .08, .06, M.plinth, ox + o.w / 2, (DOCK_H - .08) / 2, .03));
+    } else g.add(box(o.w, DOCK_H + .02, .06, M.plinth, ox + o.w / 2, (DOCK_H + .02) / 2, .03));   // concrete face under the door
     px = ox + o.w; }); if (x0 + W - px > .01) g.add(box(x0 + W - px, DOCK_H + .02, .06, M.plinth, (x0 + W + px) / 2, (DOCK_H + .02) / 2, .03));
   // roof edge / parapet and gutter
   g.add(box(W + .4, .5, .5, M.dark, 0, H + .4, -.1)); g.add(box(W + .6, .08, .14, M.galv, 0, H + .66, .1, { shadow: false }));
