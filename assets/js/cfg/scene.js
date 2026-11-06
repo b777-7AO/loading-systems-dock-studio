@@ -615,7 +615,7 @@ export function buildWarehouse({ mats, st, studio = false }) {
     if (st.wheelGuides) [-1, 1].forEach(s => { if (s > 0 && st.restraint && st.restraint !== 'none') return;   // the restraint rail takes the right-hand side
       const x = s * 1.55; const t = cyl(.06, 4.6, M.yellow, x, .18, 4.6, 12); t.rotation.x = Math.PI / 2; bay.add(t); [2.5, 6.6].forEach(z => bay.add(cyl(.06, .3, M.yellow, x, .1, z, 12))); });
     // dock control box inside next to the door
-    const cu = buildControlUnits({ M, st, w }); cu.position.set(w / 2 + .75, DOCK_H + 1.35, -WALL_T - .056); cu.rotation.y = Math.PI; bay.add(cu);   // LS 930/932 control units at hand height next to the door
+    const cu = buildControlUnits({ M, st, w }); cu.position.set(w / 2 + .52, DOCK_H + 1.35, -WALL_T - .056); cu.rotation.y = Math.PI; bay.add(cu);   // LS 930/932 control units at hand height next to the door
     // truck
     if (truckKind !== 'none' && (studio ? true : (st.truckBays === 'all' || i === (st.activeBay || 0)))) {
       const tr = buildTruck({ M, kind: truckKind }); tr.group.position.set(0, 0, 0); bay.add(tr.group); tr.animate(0); rigs.trucks.push({ ...tr, bay: i });
