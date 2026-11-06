@@ -811,9 +811,7 @@ export function buildWarehouse({ mats, st, studio = false }) {
     const nR = Math.max(1, Math.floor((W - 6) / 9));
     for (let k = 0; k < nR; k++) g.add(rack(M, x0 + 2.5 + k * 9, -D + 2.2, 3, 3));
     if (!lite) for (let k = 0; k < nR; k++) g.add(rack(M, x0 + 2.5 + k * 9, -D + 6.0, 3, 3));
-    g.add(forklift(M, bayX(Math.min(1, bays - 1)) + 2.6, -8.5, -.6));
-    // staged pallets behind the active dock
-    for (let i = 0; i < bays; i++) for (let k = 0; k < 3; k++) { if ((i * 3 + k) % 4 === 1) continue; const px = bayX(i) - 1.4 + k * 1.4, pz = -6.2 - (k % 2) * 1.1; g.add(box(1.2, .14, .8, M.pallet, px, DOCK_H + .07, pz)); const bh = .6 + ((i + k) % 3) * .35; g.add(box(1.1, bh, .75, M.boxKraft, px, DOCK_H + .14 + bh / 2, pz)); }
+    // the floor in front of the docks stays clear: the forklift's loading run passes through here (no staged pallets, no parked prop forklift)
     // steel columns along the side walls, roof lights (skylight strips)
     for (let z = -4; z > -D; z -= 6) [x0 + .5, -x0 - .5].forEach(x => g.add(box(.3, H - .2, .3, M.truss, x, H / 2, z)));
     for (let z = -6; z > -D; z -= 9) g.add(box(W - 4, .05, 1.2, M.lamp, 0, H + .02, z, { shadow: false }));
