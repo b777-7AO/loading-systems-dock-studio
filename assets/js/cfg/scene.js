@@ -432,7 +432,7 @@ export function buildRestraint({ M, st, w }) {
   const inner = new THREE.Group(); inner.name = 'restraint_arm_inner'; arm.add(inner);
   const innerL = .9; const tube = cyl(.042, innerL, M.galv, 0, 0, innerL / 2, 14); tube.rotation.x = Math.PI / 2; inner.add(tube);
   inner.add(rbox(.16, .14, .12, .02, M.bumperRubber, 0, 0, innerL - .04));
-  const inMin = .5 - innerL, inMax = inMin + .9;   // retracted: pad flush with the fixed tube; extended: pad 1.4 m from the rail, in front of the wheels
+  const inMin = .5 - innerL, inMax = inMin + .54;   // retracted: pad flush with the fixed tube; extended: pad 1.04 m from the rail (reach reduced by 40 % per Julian)
   inner.position.z = inMin;
   const travel = zPark - zTarget;
   animate = t => { carriage.position.z = zPark - travel * seg(t, 0, .6); inner.position.z = inMin + (inMax - inMin) * ease(seg(t, .6, 1)); };
