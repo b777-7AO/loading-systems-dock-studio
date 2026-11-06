@@ -1,7 +1,7 @@
 /* Loading Systems · Dock Studio scene: warehouse with N loading bays, doors, dock levellers, shelters, bumpers, restraints, lights, trucks.
    Units metres. X along the facade, Y up, +Z = yard (outside). Yard level y = 0, warehouse floor y = DOCK_H. Facade front face at z = 0. */
 import * as THREE from 'three';
-import { DOORS, LEVELLERS, SHELTERS, BUMPERS, TRUCKS, WINDOWS, FULLVISION, LIFT, LIFT_620 } from './catalog.js?v=30';
+import { DOORS, LEVELLERS, SHELTERS, BUMPERS, TRUCKS, WINDOWS, FULLVISION, LIFT, LIFT_620 } from './catalog.js?v=31';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 
@@ -197,7 +197,7 @@ export function trackGeometry({ Ht, R, Rr, zo, horizLen, vertical, mirror = fals
 
 /* ---------------------------------------------------------------- Door rig with tracks + animate(t) */
 export function buildDoor({ M, st, w, h }) {
-  const d = DOORS[st.door]; const g = new THREE.Group(); g.position.y = DOCK_H; const zL = -WALL_T - .06 - (st.recess || 0);   // stepped dock: the door sits at the back of the recess
+  const d = DOORS[st.door]; const g = new THREE.Group(); g.position.y = DOCK_H; const zL = -WALL_T - .06;
   let animate = () => {};
   const hl = Math.min(d.priced === 'hs620' ? { SL: 0, HL750: .75, HL1370: 1.37, HL2000: 2.0, VL: 99 }[st.lift620 || 'SL'] : (LIFT[st.lift] || LIFT.normal).hl, HALL_H - h - .6);
   const vertical = hl >= 99;
@@ -257,10 +257,19 @@ export function buildDoor({ M, st, w, h }) {
 /* ---------------------------------------------------------------- Dock leveller with lip */
 export function buildLeveller({ M, st, w, bedH, truckRearZ = null }) {
   const g = new THREE.Group(); const L = LEVELLERS[st.leveller]; if (!L || st.leveller === 'none') return { group: g, animate: () => {} };
-  const len = (st.levellerLen || 2500) / 1000, pw = (st.levellerW || 2000) / 1000; const lipLen = L.lipLen;
+  const stepped = !!L.stepped; const G = stepped ? 1.3 : 0;   // stepped dock: safety zone between the door and the leveller, the vehicle doors swing into it
+  const len = Math.max((st.levellerLen || 2500) / 1000, stepped ? 3.0 : 0), pw = (st.levellerW || 2000) / 1000; const lipLen = L.lipLen;
   // pit box behind the facade, plate hinged at the rear
-  const plateEdgeZ = -WALL_T - .12;   // plate front edge 6 cm behind the door leaf (leaf at -WALL_T-.06): the door closes in front of the retracted lip
+  const plateEdgeZ = -WALL_T - .12 - G;   // plate front edge 6 cm behind the door leaf (leaf at -WALL_T-.06), or behind the safety zone on a stepped dock
   const pit = new THREE.Group(); pit.position.set(0, DOCK_H, plateEdgeZ);
+  if (stepped) {   // sunken safety zone (cut-outs on both sides of the lip): dark floor 35 cm below the hall floor, concrete walls, galvanised edge angles
+    const zw = (st.w / 1000) - .1, zd = G + .06, zy = -.35; const zone = new THREE.Group(); zone.position.set(0, DOCK_H, -WALL_T - .06); g.add(zone);
+    zone.add(box(zw, .02, zd, M.levellerFrame, 0, zy + .01, -zd / 2));
+    [-1, 1].forEach(sx => zone.add(box(.06, -zy, zd, M.plinth, sx * (zw / 2 + .03), zy / 2, -zd / 2)));
+    zone.add(box(zw + .12, -zy, .06, M.plinth, 0, zy / 2, .03));   // wall under the door
+    [-1, 1].forEach(sx => zone.add(box(.05, .006, zd, M.galvDark, sx * (zw / 2 + .035), .003, -zd / 2, { shadow: false })));   // edge angles along the hall floor
+    zone.add(box(zw + .12, .006, .05, M.galvDark, 0, .003, .035, { shadow: false }));
+  }
   const gap = .02;   // pit is only 1 cm bigger than the plate on each side: the leveller is the whole area, not a plate in a wide frame
   pit.add(box(pw + gap, .02, len + gap, M.levellerFrame, 0, -.74, -(len + gap) / 2, { shadow: false }));   // pit floor
   [-1, 1].forEach(s => pit.add(box(.04, .74, len + gap, M.plinth, s * (pw / 2 + gap / 2 + .02), -.37, -(len + gap) / 2)));
@@ -279,7 +288,7 @@ export function buildLeveller({ M, st, w, bedH, truckRearZ = null }) {
   const lipPivot = new THREE.Group(); lipPivot.position.set(0, 0, len); lipPivot.userData.dynamic = true; hinge.add(lipPivot);
   let lip;
   if (L.lip === 'swing') { lip = uvMetres(box(pw - .1, .05, lipLen, M.levellerPlate, 0, 0, lipLen / 2)); lipPivot.add(lip); lipPivot.add(box(pw - .1, .004, .08, M.hazard, 0, .028, lipLen - .04, { shadow: false })); lipPivot.rotation.x = Math.PI / 2 - .08; }
-  else { const body = lipLen + 1.2; lip = uvMetres(box(pw - .1, .02, body, M.levellerPlate, 0, .019, 0)); lip.geometry.translate(0, 0, -body / 2); lipPivot.add(lip); lip.position.z = 0; lip.add(box(pw - .1, .003, .08, M.hazard, 0, .0115, -.04, { shadow: false })); }   // telescopic lip: thin 20 mm steel plate flush with the platform top, one rigid piece sliding out of a slot in the front edge; its body runs 1.2 m back inside the platform
+  else { const body = Math.min(lipLen + 1.2, len - .1); lip = uvMetres(box(pw - .1, .02, body, M.levellerPlate, 0, .019, 0)); lip.geometry.translate(0, 0, -body / 2); lipPivot.add(lip); lip.position.z = 0; lip.add(box(pw - .1, .003, .08, M.hazard, 0, .0115, -.04, { shadow: false })); }   // telescopic lip: thin 20 mm steel plate flush with the platform top, one rigid piece sliding out of a slot in the front edge; its body runs 1.2 m back inside the platform
   // galvanised toe guards (side skirts)
   [-1, 1].forEach(s => { const sk = box(.02, .7, len, M.galvDark, s * (pw / 2 - .01), -.36, len / 2, { shadow: false }); hinge.add(sk); });
   mergeStatic(hinge); g.add(pit);
@@ -730,7 +739,13 @@ export function buildWarehouse({ mats, st, studio = false }) {
   const inner = M.facadeInner;
   g.add(box(WALL_T, H, D, facMat, x0 + WALL_T / 2, H / 2, -D / 2)); g.add(box(WALL_T, H, D, facMat, -x0 - WALL_T / 2, H / 2, -D / 2));
   g.add(box(W, H, WALL_T, inner, 0, H / 2, -D + WALL_T / 2));
-  g.add(plane(W - .6, D - .6, M.floor, 0, DOCK_H, -D / 2));
+  if (st.leveller === 'stepped') {   // hall floor with the stepped-dock safety zones cut out (one per bay)
+    const fw = W - .6, fd = D - .6; const sh = new THREE.Shape(); sh.moveTo(-fw / 2, -fd / 2); sh.lineTo(fw / 2, -fd / 2); sh.lineTo(fw / 2, fd / 2); sh.lineTo(-fw / 2, fd / 2); sh.closePath();
+    for (let i = 0; i < bays; i++) { const cx = bayX(i), hw = w / 2 - .05, z1 = -WALL_T - .06, z2 = z1 - 1.36; const y1 = -z1 - D / 2, y2 = -z2 - D / 2;   // local y = -(world z) - D/2
+      const hole = new THREE.Path(); hole.moveTo(cx - hw, y1); hole.lineTo(cx + hw, y1); hole.lineTo(cx + hw, y2); hole.lineTo(cx - hw, y2); hole.closePath(); sh.holes.push(hole); }
+    const fg = new THREE.ShapeGeometry(sh, 2); const uv = fg.attributes.uv, pa = fg.attributes.position; for (let i = 0; i < uv.count; i++) uv.setXY(i, pa.getX(i), pa.getY(i));
+    const fm = new THREE.Mesh(fg, M.floor); fm.rotation.x = -Math.PI / 2; fm.position.set(0, DOCK_H, -D / 2); fm.receiveShadow = true; g.add(fm);
+  } else g.add(plane(W - .6, D - .6, M.floor, 0, DOCK_H, -D / 2));
   g.add(box(W, .3, D, M.ceiling, 0, H + .15, -D / 2, { shadow: false }));
   for (let z = -3; z > -D; z -= 6) { g.add(box(W - .6, .5, .12, M.truss, 0, H - .3, z, { shadow: false })); if (!lite) for (let k = 0; k < 14; k++) { const d = box(.05, .45, .05, M.truss, x0 + .6 + k * (W - 1.2) / 13, H - .3, z, { shadow: false }); d.rotation.z = (k % 2 ? 1 : -1) * .6; g.add(d); } }
   const lightMeshes = [];
@@ -763,16 +778,7 @@ export function buildWarehouse({ mats, st, studio = false }) {
   for (let i = 0; i < bays; i++) {
     const cx = bayX(i); const bay = new THREE.Group(); bay.position.x = cx; g.add(bay);
     // dock edge plate
-    // Stepped dock (LS stepped-dock page): the dock face is recessed ~1.3 m over the door width; the overhead door stands at the back of the
-    // recess, the leveller stays at the front so its lip reaches the vehicle, and the vehicle's rear doors swing open into the recess
-    // after docking with closed doors (cut-outs on both sides of the leveller).
-    const recess = st.leveller === 'stepped' ? 1.35 : 0;
-    if (recess && !studio) { const facM = facMat; const topY = DOCK_H + h, roofY = H + .4;
-      [-1, 1].forEach(sx => bay.add(box(WALL_T, h + .3, recess, facM, sx * (w / 2 + WALL_T / 2), DOCK_H + (h + .3) / 2, -WALL_T - recess / 2)));   // recess side walls
-      bay.add(box(w + 2 * WALL_T, roofY - topY, recess, facM, 0, topY + (roofY - topY) / 2, -WALL_T - recess / 2));                                   // wall above the recess
-      bay.add(box(w + 2 * WALL_T, .25, recess + .02, M.facadeInner, 0, topY + .125, -WALL_T - recess / 2, { shadow: false }));                    // lintel soffit
-    }
-    const door = buildDoor({ M, st: { ...st, bayNo: i + 1, studio, recess }, w, h }); bay.add(door.group); rigs.doors.push(door);
+    const door = buildDoor({ M, st: { ...st, bayNo: i + 1, studio }, w, h }); bay.add(door.group); rigs.doors.push(door);
     bay.add(box(w + .7, .14, .02, M.yellowStripe, 0, DOCK_H - .2, .07, { shadow: false }));   // yellow dock-edge marking
     const truckKind = st.truck; const bedH = TRUCKS[truckKind] && truckKind !== 'none' ? TRUCKS[truckKind].bedH : null;
     const truckRearZ = bedH != null ? .34 + (TRUCKS[truckKind].doorFaceZ || 0) : null;

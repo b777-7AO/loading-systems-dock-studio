@@ -71,7 +71,7 @@ export const LEVELLERS = {
   none: { label: 'Keine Überladebrücke', desc: 'Ebenerdiges Tor ohne Rampe.' },
   swing: { label: 'Überladebrücke mit Klappkeil 232NG', desc: 'Elektrohydraulisch, robuster Klappkeil, für Standard-Verladestellen. Pulverbeschichtet in Serie.', lip: 'swing', lipLen: .5 },
   tele: { label: 'Überladebrücke mit Vorschubkeil 233NG', desc: 'Elektrohydraulisch mit teleskopierendem Vorschub bis 1000 mm: präzises Anfahren, ISO-Docking, weniger Energieverlust.', lip: 'tele', lipLen: 1.0 },
-  stepped: { label: 'Stepped Dock mit Vorschubkeil', desc: 'Der Lkw dockt vollständig an, bevor das Tor öffnet. Sealed Docking gegen Energieverlust.', lip: 'tele', lipLen: 1.0, stepped: true },
+  stepped: { label: 'Stepped Dock mit Vorschubkeil', desc: 'Der Lkw dockt vollständig an, bevor das Tor öffnet. Sealed Docking gegen Energieverlust.', lip: 'tele', lipLen: 2.25, stepped: true },
   combi: { label: 'Combidock 253NG', desc: 'Für Lkw und Lieferwagen: automatischer Gewichtsausgleich, selbsttragend, kein separates Van-Dock.', lip: 'tele', lipLen: .8 },
   manual: { label: 'Manuelle Überladebrücke 105NG', desc: 'Kompakt, ohne Antrieb, ausziehbarer Keil für kleine Höhenunterschiede.', lip: 'tele', lipLen: .5, manual: true },
 };
