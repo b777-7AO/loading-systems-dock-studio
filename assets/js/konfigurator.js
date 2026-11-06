@@ -11,7 +11,7 @@ import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import * as C from './cfg/catalog.js?v=30';
 import { createMaterials, TEX } from './cfg/materials.js?v=28';
-import { buildWarehouse, buildStudio, dispose, DOCK_H, ease, registerParts, registerVehicles, mergeStatic, QUALITY } from './cfg/scene.js?v=32';
+import { buildWarehouse, buildStudio, dispose, DOCK_H, ease, registerParts, registerVehicles, mergeStatic, QUALITY } from './cfg/scene.js?v=33';
 
 const $ = id => document.getElementById(id);
 const q = new URLSearchParams(location.search);
@@ -95,7 +95,7 @@ let wh = null, studioGroup = null, dims = {};
 let docking = 0, dockTarget = 0, dockAnimStart = null, dockFrom = 0, camTween = null, pendingLimits = null;
 /* manual overrides for the door and the leveller (buttons next to the docking control): {from,to,start,dur,value,release} */
 let manDoor = null, manLev = null;
-const seqDoor = t => Math.max(0, Math.min(1, (t - .46) / .2)), seqLev = t => Math.max(0, Math.min(1, (t - .66) / .34));
+const seqDoor = t => Math.max(0, Math.min(1, (t - .46) / .2)), seqLev = t => state.leveller === 'stepped' ? Math.max(0, Math.min(1, (t - .76) / .24)) : Math.max(0, Math.min(1, (t - .66) / .34));
 let hintTimer = null, noticeTimer = null;
 function hint(msg) { $('dockLabel').textContent = msg; clearTimeout(hintTimer); hintTimer = setTimeout(() => applyDocking(docking), 2200); }
 function notice(title, text) { const n = $('cfgNotice'); $('cfgNoticeTitle').textContent = title; $('cfgNoticeText').textContent = text; n.hidden = false; clearTimeout(noticeTimer); noticeTimer = setTimeout(() => { n.hidden = true; }, 4200); }
@@ -127,9 +127,11 @@ function buildWorld() {
 /* docking sequence phases */
 function applyDocking(t, force = false) {
   if (!wh) return; const r = wh.rigs;
-  const arrive = ease(Math.min(1, t / .38)); const restr = Math.max(0, Math.min(1, (t - .36) / .12)); const door = Math.max(0, Math.min(1, (t - .46) / .2)); const shel = Math.max(0, Math.min(1, (t - .31) / .07)); /* curtains fold while the vehicle pushes into the shelter */ const lev = Math.max(0, Math.min(1, (t - .66) / .34));
-  const rearDoors = Math.max(0, Math.min(1, (t - .03) / .17));
-  r.trucks.forEach(tr => { const start = 31, end = .34; const z = start + (end - start) * arrive; const prev = tr.group.position.z; tr.group.position.z = z; tr.animate(prev - z); if (tr.doors) tr.doors(rearDoors); });
+  const arrive = ease(Math.min(1, t / .38)); const restr = Math.max(0, Math.min(1, (t - .36) / .12)); const door = seqDoor(t); const shel = Math.max(0, Math.min(1, (t - .31) / .07)); /* curtains fold while the vehicle pushes into the shelter */ const lev = seqLev(t);
+  // stepped dock: the vehicle docks with closed doors; they open into the recess (90°) only after the overhead door is open
+  const stepped = state.leveller === 'stepped';
+  const rearDoors = stepped ? Math.max(0, Math.min(1, (t - .66) / .1)) : Math.max(0, Math.min(1, (t - .03) / .17));
+  r.trucks.forEach(tr => { const start = 31, end = .34; const z = start + (end - start) * arrive; const prev = tr.group.position.z; tr.group.position.z = z; tr.animate(prev - z); if (tr.doors) tr.doors(rearDoors, stepped ? Math.PI * .5 : Math.PI * 1.5); });
   const doorV = manDoor ? manDoor.value : door, levV = manLev ? manLev.value : lev;
   r.restraints.forEach(x => x.animate(restr)); r.doors.forEach(x => x.animate(doorV)); r.shelters.forEach(x => x.animate(shel)); r.levellers.forEach(x => x.animate(levV));
   r.lights.forEach(x => x.setOn(doorV > .3)); r.traffic.forEach(x => x.set(restr > .5 ? 'red' : 'green'));

@@ -197,7 +197,7 @@ export function trackGeometry({ Ht, R, Rr, zo, horizLen, vertical, mirror = fals
 
 /* ---------------------------------------------------------------- Door rig with tracks + animate(t) */
 export function buildDoor({ M, st, w, h }) {
-  const d = DOORS[st.door]; const g = new THREE.Group(); g.position.y = DOCK_H; const zL = -WALL_T - .06;
+  const d = DOORS[st.door]; const g = new THREE.Group(); g.position.y = DOCK_H; const zL = -WALL_T - .06 - (st.recess || 0);   // stepped dock: the door sits at the back of the recess
   let animate = () => {};
   const hl = Math.min(d.priced === 'hs620' ? { SL: 0, HL750: .75, HL1370: 1.37, HL2000: 2.0, VL: 99 }[st.lift620 || 'SL'] : (LIFT[st.lift] || LIFT.normal).hl, HALL_H - h - .6);
   const vertical = hl >= 99;
@@ -663,7 +663,7 @@ export function buildTruck({ M, kind, trailerOnly = false }) {
         const leaf = box(xo + .06, inH - .04, .04, M.trailerBox, -sx * (xo + .06) / 2, inH / 2, 0); hg.add(leaf);
         [.3, inH - .3].forEach(y => hg.add(box(.05, .22, .06, M.galvDark, -sx * (xo + .06) / 2, y, .04)));   // lock bars
         return { hg, sx }; });
-      doors = t => { const a = Math.PI * 1.5 * ease(t); hinges.forEach(({ hg, sx }) => { hg.rotation.y = sx > 0 ? -a : a; }); lamp.intensity = lamp2.intensity = t > .5 ? 2.5 : 0; };
+      doors = (t, maxA = Math.PI * 1.5) => { const a = maxA * ease(t); hinges.forEach(({ hg, sx }) => { hg.rotation.y = sx > 0 ? -a : a; }); lamp.intensity = lamp2.intensity = t > .5 ? 2.5 : 0; };
     }
   } else {   // fallback if the library did not load: a plain box on wheels
     const L = T.len * .75, W = 2.5, H = 2.7, bed = T.bedH; g.add(box(W, H, L, M.trailerBox, 0, bed + H / 2, L / 2)); g.add(box(W, .35, L, M.chassis, 0, bed - .18, L / 2));
@@ -763,7 +763,16 @@ export function buildWarehouse({ mats, st, studio = false }) {
   for (let i = 0; i < bays; i++) {
     const cx = bayX(i); const bay = new THREE.Group(); bay.position.x = cx; g.add(bay);
     // dock edge plate
-    const door = buildDoor({ M, st: { ...st, bayNo: i + 1, studio }, w, h }); bay.add(door.group); rigs.doors.push(door);
+    // Stepped dock (LS stepped-dock page): the dock face is recessed ~1.3 m over the door width; the overhead door stands at the back of the
+    // recess, the leveller stays at the front so its lip reaches the vehicle, and the vehicle's rear doors swing open into the recess
+    // after docking with closed doors (cut-outs on both sides of the leveller).
+    const recess = st.leveller === 'stepped' ? 1.35 : 0;
+    if (recess && !studio) { const facM = facMat; const topY = DOCK_H + h, roofY = H + .4;
+      [-1, 1].forEach(sx => bay.add(box(WALL_T, h + .3, recess, facM, sx * (w / 2 + WALL_T / 2), DOCK_H + (h + .3) / 2, -WALL_T - recess / 2)));   // recess side walls
+      bay.add(box(w + 2 * WALL_T, roofY - topY, recess, facM, 0, topY + (roofY - topY) / 2, -WALL_T - recess / 2));                                   // wall above the recess
+      bay.add(box(w + 2 * WALL_T, .25, recess + .02, M.facadeInner, 0, topY + .125, -WALL_T - recess / 2, { shadow: false }));                    // lintel soffit
+    }
+    const door = buildDoor({ M, st: { ...st, bayNo: i + 1, studio, recess }, w, h }); bay.add(door.group); rigs.doors.push(door);
     bay.add(box(w + .7, .14, .02, M.yellowStripe, 0, DOCK_H - .2, .07, { shadow: false }));   // yellow dock-edge marking
     const truckKind = st.truck; const bedH = TRUCKS[truckKind] && truckKind !== 'none' ? TRUCKS[truckKind].bedH : null;
     const truckRearZ = bedH != null ? .34 + (TRUCKS[truckKind].doorFaceZ || 0) : null;
