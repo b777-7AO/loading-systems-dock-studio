@@ -1,7 +1,7 @@
 /* Loading Systems · Dock Studio scene: warehouse with N loading bays, doors, dock levellers, shelters, bumpers, restraints, lights, trucks.
    Units metres. X along the facade, Y up, +Z = yard (outside). Yard level y = 0, warehouse floor y = DOCK_H. Facade front face at z = 0. */
 import * as THREE from 'three';
-import { DOORS, LEVELLERS, SHELTERS, BUMPERS, TRUCKS, WINDOWS, FULLVISION, LIFT, LIFT_620 } from './catalog.js?v=24';
+import { DOORS, LEVELLERS, SHELTERS, BUMPERS, TRUCKS, WINDOWS, FULLVISION, LIFT, LIFT_620 } from './catalog.js?v=25';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 
@@ -402,6 +402,85 @@ export function numberPlate({ M, n, w, h }) {
   const m = new THREE.Mesh(new THREE.PlaneGeometry(.95, .95), new THREE.MeshStandardMaterial({ map: t, roughness: .6 })); m.position.set(0, DOCK_H + h + 1.6, .012); m.castShadow = false; return m;
 }
 
+/* ---------------------------------------------------------------- LS control units (930 door / 932 dock leveller), after the pictures on loading-systems.com/en-gb/products/controls */
+const CU = { housing: null, panel: null, logoImg: null, btnTex: new Map() };
+function cuIcon(kind) {
+  if (CU.btnTex.has(kind)) return CU.btnTex.get(kind);
+  const c = document.createElement('canvas'); c.width = c.height = 128; const ctx = c.getContext('2d');
+  ctx.fillStyle = kind === 'R' || kind === 'stop' ? '#c8102e' : '#2e3134'; ctx.beginPath(); ctx.arc(64, 64, 62, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = '#1a1c1e'; ctx.lineWidth = 3; ctx.stroke();
+  ctx.fillStyle = '#fff'; ctx.strokeStyle = '#fff';
+  const arrow = rot => { ctx.save(); ctx.translate(64, 64); ctx.rotate(rot); ctx.beginPath(); ctx.moveTo(0, -34); ctx.lineTo(26, -4); ctx.lineTo(10, -4); ctx.lineTo(10, 32); ctx.lineTo(-10, 32); ctx.lineTo(-10, -4); ctx.lineTo(-26, -4); ctx.closePath(); ctx.fill(); ctx.restore(); };
+  if (kind === 'up') arrow(0); else if (kind === 'down') arrow(Math.PI); else if (kind === 'right') arrow(Math.PI / 2); else if (kind === 'left') arrow(-Math.PI / 2);
+  else if (kind === 'R') { ctx.font = 'bold 72px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('R', 64, 68); }
+  else if (kind === 'stop') { ctx.lineWidth = 12; ctx.beginPath(); ctx.arc(64, 64, 28, 0, Math.PI * 2); ctx.stroke(); }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; t.center.set(.5, .5); t.rotation = Math.PI / 2;   // cylinder cap UVs are turned 90° once the button faces the hall
+  CU.btnTex.set(kind, t); return t;
+}
+function cuPanel(type) {
+  // front face texture: dark panel with red 7-segment display, LS logo, pictogram labels; buttons are real geometry
+  const W = 640, H = 896; const c = document.createElement('canvas'); c.width = W; c.height = H; const ctx = c.getContext('2d');
+  ctx.fillStyle = '#2b2d30'; ctx.fillRect(0, 0, W, H);                                  // housing front
+  const px = 52, py = 52, pw = W - 104, ph = type === 'lev' ? 560 : 500;
+  ctx.fillStyle = '#1c1f22'; ctx.beginPath(); ctx.roundRect(px, py, pw, ph, 14); ctx.fill();   // inset panel
+  ctx.strokeStyle = '#3a3d41'; ctx.lineWidth = 3; ctx.stroke();
+  // display
+  ctx.fillStyle = '#121416'; ctx.beginPath(); ctx.roundRect(px + 28, py + 36, 170, 56, 6); ctx.fill();
+  ctx.fillStyle = '#ff2d3a'; ctx.font = 'bold 44px "Courier New", monospace'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+  ctx.fillText(type === 'lev' ? '0 0 5' : '0 0 0 0', px + 44, py + 66);
+  // pictogram labels (white) and a yellow warning label as on the 932
+  const label = (x, y, w, h, fill) => { ctx.fillStyle = fill; ctx.beginPath(); ctx.roundRect(x, y, w, h, 6); ctx.fill(); ctx.strokeStyle = '#555'; ctx.lineWidth = 2; ctx.stroke(); };
+  if (type === 'lev') {
+    label(px + 28, py + 300, 150, 70, '#f4f4f2'); ctx.strokeStyle = '#222'; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.moveTo(px + 44, py + 352); ctx.lineTo(px + 104, py + 352); ctx.lineTo(px + 150, py + 330); ctx.stroke();   // leveller profile glyph
+    ctx.beginPath(); ctx.moveTo(px + 44, py + 352); ctx.lineTo(px + 80, py + 322); ctx.lineTo(px + 110, py + 322); ctx.stroke();
+    label(px + 28, py + 400, 150, 70, '#f6c400'); ctx.fillStyle = '#222'; ctx.beginPath(); ctx.moveTo(px + 58, py + 460); ctx.lineTo(px + 86, py + 412); ctx.lineTo(px + 114, py + 460); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#f6c400'; ctx.font = 'bold 26px Arial'; ctx.textAlign = 'center'; ctx.fillText('!', px + 86, py + 446);
+  }
+  // pictograms next to the buttons (small white squares with a glyph)
+  const rows = type === 'lev' ? [['up', 'lev'], ['right', 'lip'], ['left', 'lip'], ['R', 'lev']] : [['up', 'door'], ['stop', ''], ['down', 'door']];
+  const by0 = py + 70, dy = type === 'lev' ? 120 : 150;
+  rows.forEach(([k, g], i) => { if (!g) return; const y = by0 + i * dy; label(px + pw - 120, y - 24, 56, 48, '#f4f4f2'); ctx.strokeStyle = '#222'; ctx.lineWidth = 3; ctx.beginPath();
+    if (g === 'lev') { ctx.moveTo(px + pw - 110, y + 12); ctx.lineTo(px + pw - 84, y + 12); ctx.lineTo(px + pw - 72, y - 2); }
+    else if (g === 'lip') { ctx.moveTo(px + pw - 110, y + 10); ctx.lineTo(px + pw - 90, y + 10); ctx.lineTo(px + pw - 72, y + 10); ctx.moveTo(px + pw - 80, y + 2); ctx.lineTo(px + pw - 72, y + 10); ctx.lineTo(px + pw - 80, y + 18); }
+    else { ctx.rect(px + pw - 108, y - 14, 32, 28); ctx.moveTo(px + pw - 108, y - 4); ctx.lineTo(px + pw - 76, y - 4); ctx.moveTo(px + pw - 108, y + 6); ctx.lineTo(px + pw - 76, y + 6); }
+    ctx.stroke(); });
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
+  // LS logo drawn when the image is in
+  const drawLogo = img => { ctx.drawImage(img, px + 28, py + 150, 170, 170 * img.height / img.width); t.needsUpdate = true; };
+  if (CU.logoImg) drawLogo(CU.logoImg); else new THREE.ImageLoader().load('assets/img/ls_logo_white.png', img => { CU.logoImg = img; drawLogo(img); });
+  return t;
+}
+export function buildControlUnit({ M, type = 'lev' }) {
+  // housing 250 x 350 x 110 mm, front at +z (rotate the group to face the hall)
+  const g = new THREE.Group(); const W = .25, H = .35, D = .11;
+  if (!CU.housing) CU.housing = new THREE.MeshStandardMaterial({ color: 0x2b2d30, roughness: .6, metalness: .05 });
+  const front = new THREE.MeshStandardMaterial({ map: cuPanel(type), roughness: .55, metalness: .05 });
+  const body = new THREE.Mesh(new RoundedBoxGeometry(W, H, D, 3, .012), [CU.housing, CU.housing, CU.housing, CU.housing, front, CU.housing]); body.castShadow = true; g.add(body);
+  [-1, 1].forEach(sx => [-1, 1].forEach(sy => { const sc = cyl(.009, .004, M.black, sx * (W / 2 - .018), sy * (H / 2 - .018), D / 2 + .001, 12, { shadow: false }); sc.rotation.x = Math.PI / 2; g.add(sc); }));   // corner screws
+  // buttons: real cylinders with icon caps
+  const rows = type === 'lev' ? ['up', 'right', 'left', 'R'] : ['up', 'stop', 'down'];
+  const pxm = W * (52 / 640), pym = H * (52 / 896); const bx = -W / 2 + W * ((640 - 104 - 160) / 640) + .0; const by0 = H / 2 - H * ((52 + 70) / 896); const dy = H * ((type === 'lev' ? 120 : 150) / 896);
+  rows.forEach((k, i) => { const cap = new THREE.MeshStandardMaterial({ map: cuIcon(k), roughness: .5 }); const side = new THREE.MeshStandardMaterial({ color: k === 'R' || k === 'stop' ? 0xa30d26 : 0x1f2224, roughness: .5 });
+    const b = new THREE.Mesh(new THREE.CylinderGeometry(.0135, .0135, .012, 24), [side, cap, side]); b.rotation.x = Math.PI / 2; b.position.set(bx, by0 - i * dy, D / 2 + .006); b.castShadow = false; g.add(b);
+    const ring = cyl(.016, .003, M.black, bx, by0 - i * dy, D / 2 + .0015, 24, { shadow: false }); ring.rotation.x = Math.PI / 2; g.add(ring); });
+  if (type === 'lev') {   // rotary main switch on a yellow plate, bottom left
+    const sx = -W / 2 + .06, sy = -H / 2 + .055;
+    g.add(box(.062, .062, .004, M.yellow, sx, sy, D / 2 + .002, { shadow: false }));
+    const knob = cyl(.021, .014, M.red, sx, sy, D / 2 + .011, 24, { shadow: false }); knob.rotation.x = Math.PI / 2; g.add(knob);
+    g.add(box(.012, .048, .012, M.red, sx, sy, D / 2 + .024, { shadow: false }));   // handle
+  }
+  [-1, 1].forEach(sx => { const gl = cyl(.011, .022, M.lampOff, sx * .055, -H / 2 - .011, 0, 12, { shadow: false }); g.add(gl); });   // cable glands
+  g.userData.size = { W, H, D }; return g;
+}
+export function buildControlUnits({ M, st, w }) {
+  // 'basic': door control 930 above the leveller control 932; 'combi' / 'dockMgmt': the two housings joined side by side (as on the LS integrated-control picture)
+  const g = new THREE.Group(); const lev = buildControlUnit({ M, type: 'lev' }); const door = buildControlUnit({ M, type: 'door' });
+  if (st.dockControl === 'basic') { door.position.set(0, .37, 0); lev.position.set(0, 0, 0); g.add(door, lev); }
+  else { door.position.set(-.127, 0, 0); lev.position.set(.127, 0, 0); g.add(door, lev); }
+  return g;
+}
+
 /* ---------------------------------------------------------------- Trucks (Blender library, see ~/LS-work/blender/vehicles.py) */
 export function buildTruck({ M, kind, trailerOnly = false }) {
   const g = new THREE.Group(); g.userData.dynamic = true; const T = TRUCKS[kind]; if (!T || kind === 'none') return { group: g, animate: () => {}, doors: () => {}, len: 0, bedH: null };
@@ -536,7 +615,7 @@ export function buildWarehouse({ mats, st, studio = false }) {
     if (st.wheelGuides) [-1, 1].forEach(s => { if (s > 0 && st.restraint && st.restraint !== 'none') return;   // the restraint rail takes the right-hand side
       const x = s * 1.55; const t = cyl(.06, 4.6, M.yellow, x, .18, 4.6, 12); t.rotation.x = Math.PI / 2; bay.add(t); [2.5, 6.6].forEach(z => bay.add(cyl(.06, .3, M.yellow, x, .1, z, 12))); });
     // dock control box inside next to the door
-    const cb = part('control_box', w / 2 + .7, DOCK_H + 1.4, -WALL_T - .07, { rotY: Math.PI }); if (cb) bay.add(cb); else bay.add(box(.3, .42, .12, M.white, w / 2 + .7, DOCK_H + 1.4, -WALL_T - .07));
+    const cu = buildControlUnits({ M, st, w }); cu.position.set(w / 2 + .75, DOCK_H + 1.35, -WALL_T - .056); cu.rotation.y = Math.PI; bay.add(cu);   // LS 930/932 control units at hand height next to the door
     // truck
     if (truckKind !== 'none' && (studio ? true : (st.truckBays === 'all' || i === (st.activeBay || 0)))) {
       const tr = buildTruck({ M, kind: truckKind }); tr.group.position.set(0, 0, 0); bay.add(tr.group); tr.animate(0); rigs.trucks.push({ ...tr, bay: i });
