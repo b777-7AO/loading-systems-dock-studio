@@ -11,3 +11,7 @@ Landscape (added 06.11.2026), all CC0 from Poly Haven (polyhaven.com):
 - HDRI abandoned_hopper_terminal_04 -> env_yard.jpg (4k, tonemapped background), env_yard_1k.hdr (lighting)
 - textures leafy_grass, grass_ground, asphalt_02, concrete_pavers_02, bicolour_gravel (1k jpg, diff/nor_gl/rough)
 - models island_tree_01, island_tree_02 -> tree_01.webp, tree_02.webp (8-view impostor atlases rendered in Blender, ~/LS-work/blender/tree_impostors.py)
+
+Van rear doors (added 06.11.2026):
+- van_door_L.jpg, van_door_R.jpg: rectified crops of "VW Crafter rear 20071215.jpg" by Randy43, Wikimedia Commons,
+  CC BY-SA 3.0 (https://commons.wikimedia.org/wiki/File:VW_Crafter_rear_20071215.jpg); badges and lettering removed.

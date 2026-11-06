@@ -699,12 +699,10 @@ export function buildTruck({ M, kind, trailerOnly = false }) {
       const hinges = [-1, 1].map(sx => { const hg = new THREE.Group(); hg.position.set(sx * (xo + .08), yB, zF - .03); g.add(hg);
         const lw = xo + .06, lx = -sx * lw / 2;
         if (T.vanDoors) {   // van: smooth white painted leaf with a window, black rubber edge seal, two hinges on the outer edge and a handle at the centre split
-          hg.add(rbox(lw - .02, inH - .06, .045, .018, M.vanPaint, lx, inH / 2, 0));
+          // leaf: photo of a real van door on the outer face (left/right picture per leaf), white paint elsewhere, black edge seal
+          const face = sx > 0 ? M.vanDoorL : M.vanDoorR;   /* seen from behind, +x is the viewer's left */ const mats = [M.vanPaint, M.vanPaint, M.vanPaint, M.vanPaint, M.vanPaint, face];
+          const leafM = new THREE.Mesh(new THREE.BoxGeometry(lw - .02, inH - .06, .045), mats); leafM.position.set(lx, inH / 2, 0); leafM.castShadow = leafM.receiveShadow = true; hg.add(leafM);
           hg.add(box(lw, inH - .02, .02, M.rubberSeal || M.black, lx, inH / 2, .012, { shadow: false }));                 // seal / inner edge
-          hg.add(rbox(lw * .74, inH * .30, .012, .03, M.glassDark, lx, inH * .70, -.027, { shadow: false }));           // rear window
-          hg.add(box(lw * .78, inH * .34, .006, M.black, lx, inH * .70, -.022, { shadow: false }));                     // window surround
-          [inH * .22, inH * .8].forEach(y => hg.add(box(.03, .12, .05, M.galvDark, sx * .01, y, -.03)));                 // hinges on the outer edge
-          hg.add(box(.03, .14, .03, M.galvDark, -sx * (lw - .08), inH * .46, -.035));                                      // handle
         } else {
           hg.add(box(lw, inH - .04, .04, M.trailerBox, lx, inH / 2, 0));
           [.3, inH - .3].forEach(y => hg.add(box(.05, .22, .06, M.galvDark, lx, y, .04)));   // lock bars

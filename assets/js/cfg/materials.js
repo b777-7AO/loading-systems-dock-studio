@@ -138,6 +138,8 @@ export function createMaterials(renderer, manager, { mobile = false } = {}) {
     truckTrim: std({ color: 0x1f2124, roughness: .5, metalness: .2 }),
     vanPaint: phys({ color: 0xf1f2f0, roughness: .32, metalness: .08, clearcoat: .6, clearcoatRoughness: .2 }),   // smooth white van body panels (rear doors)
     vanInner: std({ color: 0xcfd2d4, roughness: .85, metalness: 0 }),   // van load compartment lining
+    vanDoorL: std({ map: tx('van_door_L.jpg?v=5', { srgb: true, wrap: false }), roughness: .38, metalness: .08 }),   // photo of a real van rear door (see LICENSES.txt)
+    vanDoorR: std({ map: tx('van_door_R.jpg?v=6', { srgb: true, wrap: false }), roughness: .38, metalness: .08 }),
     trailerBox: std({ color: 0xeef0ee, roughness: .45, metalness: .2, normalMap: tx('ph_boxprofile_n.jpg', { tile: 1.6 }), normalScale: new THREE.Vector2(.45, .45), roughnessMap: tx('ph_boxprofile_r.jpg', { tile: 1.6 }) }),
     trailerRoof: std({ color: 0xe3e5e3, roughness: .6, metalness: .2 }),
     tyre: std({ ...pbr('cc_rubber', .25), color: 0x2b2b2b, roughness: .95, normalScale: new THREE.Vector2(.6, .6) }),
