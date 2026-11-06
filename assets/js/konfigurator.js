@@ -9,9 +9,9 @@ import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import * as C from './cfg/catalog.js?v=27';
-import { createMaterials, TEX } from './cfg/materials.js?v=27';
-import { buildWarehouse, buildStudio, dispose, DOCK_H, ease, registerParts, registerVehicles, mergeStatic, QUALITY } from './cfg/scene.js?v=27';
+import * as C from './cfg/catalog.js?v=28';
+import { createMaterials, TEX } from './cfg/materials.js?v=28';
+import { buildWarehouse, buildStudio, dispose, DOCK_H, ease, registerParts, registerVehicles, mergeStatic, QUALITY } from './cfg/scene.js?v=28';
 
 const $ = id => document.getElementById(id);
 const q = new URLSearchParams(location.search);
@@ -135,12 +135,12 @@ function applyDocking(t, force = false) {
 function views() {
   const { W, H, D, w, h, bayX } = dims; const cx = state.mode === 'studio' ? 0 : bayX(state.activeBay); const yc = DOCK_H + h / 2;
   return {
-    yard: { pos: [cx + 17, 5.5, 27], tgt: [cx - 3, 2.2, 0], polar: .3, dist: [4, 90] },
+    yard: { pos: [cx + 17, 5.5, 27], tgt: [cx - 3, 2.2, 0], polar: .3, dist: [4, 180] },
     bay: { pos: [cx + 9, 2.6, 6.5], tgt: [cx + .5, yc - .3, .6], polar: .3, dist: [2, 40] },
-    inside: { pos: [cx + 1.5, DOCK_H + 1.7, state.mode === 'studio' ? -4.6 : -7.5], tgt: [cx, yc, 0], polar: .3, dist: [1.5, 30] },
-    hall: { pos: [cx - 5, DOCK_H + 3.2, -13], tgt: [cx + 1, DOCK_H + 1.4, -2], polar: .3, dist: [2, 60] },
-    top: { pos: [cx, 34, 12], tgt: [cx, 0, -2], polar: .05, dist: [10, 120] },
-    truck: (() => { const tr = wh && wh.rigs.trucks[0]; const tz = tr ? tr.group.position.z : 12; const L = tr ? tr.len : 14; return { pos: [cx + 7, 3.2, tz + L * .55 + 11], tgt: [cx - .5, 2.0, tz + L * .45], polar: .3, dist: [3, 70] }; })(),
+    inside: { pos: [cx + 1.5, DOCK_H + 1.7, state.mode === 'studio' ? -4.6 : -7.5], tgt: [cx, yc, 0], polar: .3, dist: [1.5, 70] },
+    hall: { pos: [cx - 5, DOCK_H + 3.2, -13], tgt: [cx + 1, DOCK_H + 1.4, -2], polar: .3, dist: [2, 140] },
+    top: { pos: [cx, 34, 12], tgt: [cx, 0, -2], polar: .05, dist: [10, 260] },
+    truck: (() => { const tr = wh && wh.rigs.trucks[0]; const tz = tr ? tr.group.position.z : 12; const L = tr ? tr.len : 14; return { pos: [cx + 7, 3.2, tz + L * .55 + 11], tgt: [cx - .5, 2.0, tz + L * .45], polar: .3, dist: [3, 140] }; })(),
     studio: { pos: [w * 1.2 + 4, 2.4, 9.5], tgt: [0, yc + .2, 0], polar: .25, dist: [3, 30] },
     detail: { pos: [-1.8, DOCK_H + 1.4, 3.4], tgt: [-.5, DOCK_H + 1.1, 0], polar: .25, dist: [1, 30] },
   };
@@ -148,7 +148,7 @@ function views() {
 function goView(name, instant = false) {
   const all = views(); const v = all[name] || all[state.mode === 'studio' ? 'studio' : 'yard']; state.view = name;
   document.querySelectorAll('#cfgViews button').forEach(b => b.classList.toggle('is-active', b.dataset.view === name));
-  controls.minDistance = .5; controls.maxDistance = 200; controls.minPolarAngle = 0;
+  controls.minDistance = .5; controls.maxDistance = 320; controls.minPolarAngle = 0;
   const k = camera.aspect < 1 ? 1 + (1 - camera.aspect) * (mobile ? .35 : 1.2) : 1; const pos = v.tgt.map((t, i) => t + (v.pos[i] - t) * k);
   if (instant) { camera.position.fromArray(pos); controls.target.fromArray(v.tgt); controls.minDistance = v.dist[0]; controls.maxDistance = v.dist[1]; controls.minPolarAngle = v.polar; controls.update(); invalidate(); return; }
   pendingLimits = v; camTween = { from: camera.position.clone(), fromT: controls.target.clone(), to: new THREE.Vector3().fromArray(pos), toT: new THREE.Vector3().fromArray(v.tgt), start: performance.now(), dur: 1000 };
