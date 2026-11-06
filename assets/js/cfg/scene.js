@@ -39,7 +39,9 @@ export const plane = (w, h, mat, x, y, z, rotX = -Math.PI / 2) => {
 /* vertical wall in XY with rectangular openings, extruded along -Z by t; placed with its left edge at x=0, bottom at y=0, front face at z=0 */
 export function wall(w, h, t, openings, mat) {
   const s = new THREE.Shape(); s.moveTo(0, 0); s.lineTo(w, 0); s.lineTo(w, h); s.lineTo(0, h); s.closePath();
-  openings.forEach(o => { const p = new THREE.Path(); p.moveTo(o.x, o.y); p.lineTo(o.x + o.w, o.y); p.lineTo(o.x + o.w, o.y + o.h); p.lineTo(o.x, o.y + o.h); p.closePath(); s.holes.push(p); });
+  openings.forEach(o => { const p = new THREE.Path(); p.moveTo(o.x, o.y);
+    if (o.notch) { const n = o.notch; p.lineTo(o.x + n.x, o.y); p.lineTo(o.x + n.x, o.y - n.d); p.lineTo(o.x + n.x + n.w, o.y - n.d); p.lineTo(o.x + n.x + n.w, o.y); }   // T-shaped opening (stepped dock)
+    p.lineTo(o.x + o.w, o.y); p.lineTo(o.x + o.w, o.y + o.h); p.lineTo(o.x, o.y + o.h); p.closePath(); s.holes.push(p); });
   const g = new THREE.ExtrudeGeometry(s, { depth: t, bevelEnabled: false }); g.translate(0, 0, -t);
   const m = new THREE.Mesh(g, mat); m.castShadow = true; m.receiveShadow = true; return m;
 }
@@ -142,6 +144,10 @@ function sectionalLeaf(w, h, ph, st, M, d) {
   }
   // bottom panel: seal profile, flush handle, Loading Systems logo plate; wicket outline
   const bottom = parts[0].p;
+  if (st.stepDown) {   // stepped dock: T-shaped leaf, a narrower extension below the bottom panel drops into the lower zone in front of the leveller
+    const ext = new THREE.Mesh(panelGeometry(st.stepW - .02, st.stepDown, t), faceMat); ext.position.set(-(st.stepW - .02) / 2, -H / 2 - st.stepDown, 0); ext.castShadow = ext.receiveShadow = true; bottom.add(ext);
+    bottom.add(box(st.stepW - .02, .03, .05, M.black, 0, -H / 2 - st.stepDown + .015, t / 2, { shadow: false }));   // seal under the extension
+  }
   const seal = part('bottom_seal', 0, -H / 2 + .01, 0, { scale: [w, 1, 1], shadow: false }); if (seal) bottom.add(seal); else bottom.add(box(w, .03, .05, M.black, 0, -H / 2 + .015, 0, { shadow: false }));
   const handle = part('flush_handle', w * .22, 0, t / 2 + .002); if (handle) { handle.position.y = Math.min(H / 2 - .1, .95 - H / 2); bottom.add(handle); }
   const lp = part('logo_plate', w / 2 - .32, -H / 2 + .14, t / 2 + .004, { shadow: false }); if (lp) bottom.add(lp);
@@ -197,7 +203,7 @@ export function trackGeometry({ Ht, R, Rr, zo, horizLen, vertical, mirror = fals
 
 /* ---------------------------------------------------------------- Door rig with tracks + animate(t) */
 export function buildDoor({ M, st, w, h }) {
-  const d = DOORS[st.door]; const g = new THREE.Group(); g.position.y = DOCK_H - (st.stepDown || 0); const zL = -WALL_T - .06;   // stepped dock: the door runs down to the lower zone floor
+  const d = DOORS[st.door]; const g = new THREE.Group(); g.position.y = DOCK_H; const zL = -WALL_T - .06;
   let animate = () => {};
   const hl = Math.min(d.priced === 'hs620' ? { SL: 0, HL750: .75, HL1370: 1.37, HL2000: 2.0, VL: 99 }[st.lift620 || 'SL'] : (LIFT[st.lift] || LIFT.normal).hl, HALL_H - h - .6);
   const vertical = hl >= 99;
@@ -263,7 +269,7 @@ export function buildLeveller({ M, st, w, bedH, truckRearZ = null }) {
   const plateEdgeZ = -WALL_T - .12 - G;   // plate front edge 6 cm behind the door leaf (leaf at -WALL_T-.06), or behind the safety zone on a stepped dock
   const pit = new THREE.Group(); pit.position.set(0, DOCK_H, plateEdgeZ);
   if (stepped) {   // sunken safety zone (cut-outs on both sides of the lip): dark floor 35 cm below the hall floor, concrete walls, galvanised edge angles
-    const zw = (st.w / 1000) - .1, zd = G + .12, zy = -.35; const zone = new THREE.Group(); zone.position.set(0, DOCK_H, -WALL_T); g.add(zone);
+    const zw = pw + .1, zd = G + .12, zy = -.5; const zone = new THREE.Group(); zone.position.set(0, DOCK_H, -WALL_T); g.add(zone);
     zone.add(box(zw, .02, zd, M.levellerFrame, 0, zy + .01, -zd / 2));                                          // lower floor, runs out to the door
     [-1, 1].forEach(sx => zone.add(box(.06, -zy, zd, M.plinth, sx * (zw / 2 + .03), zy / 2, -zd / 2)));          // side walls of the step
     [-1, 1].forEach(sx => zone.add(box(.05, .006, zd, M.galvDark, sx * (zw / 2 + .035), .003, -zd / 2, { shadow: false })));   // edge angles along the hall floor
@@ -713,8 +719,8 @@ export function buildWarehouse({ mats, st, studio = false }) {
   const w = st.w / 1000, h = st.h / 1000; const bays = studio ? 1 : st.bays; const lite = QUALITY.mobile;
   const pitch = Math.max(PITCH, w + 1.9); const W = studio ? w + 3.2 : bays * pitch + 8; const H = DOCK_H + HALL_H; const D = studio ? 6 : HALL_D;
   const x0 = -W / 2; const bayX = i => studio ? 0 : x0 + 4 + pitch * i + pitch / 2;
-  const stepDown = st.leveller === 'stepped' ? .35 : 0;   // stepped dock: floor and door go 35 cm below the hall floor in front of the leveller
-  const openings = []; for (let i = 0; i < bays; i++) openings.push({ x: bayX(i) - x0 - w / 2, y: DOCK_H - stepDown, w, h: h + stepDown });
+  const stepDown = st.leveller === 'stepped' ? .5 : 0, stepW = (st.levellerW || 2000) / 1000 + .1;   // stepped dock: in front of the leveller (its width) the floor is 50 cm lower; the door has a T extension that closes that gap
+  const openings = []; for (let i = 0; i < bays; i++) openings.push({ x: bayX(i) - x0 - w / 2, y: DOCK_H, w, h, notch: stepDown ? { x: (w - stepW) / 2, w: stepW, d: stepDown } : null });
   // mandoor (pedestrian door) next to the first bay
   if (st.mandoor && st.mandoor !== 'none' && !studio) openings.push({ x: bayX(0) - x0 - w / 2 - 1.9, y: DOCK_H, w: (st.mandoorW || 1000) / 1000, h: (st.mandoorH || 2125) / 1000 });
   // facade: dock wall (concrete) up to DOCK_H, sandwich panels above
@@ -740,7 +746,7 @@ export function buildWarehouse({ mats, st, studio = false }) {
   g.add(box(W, H, WALL_T, inner, 0, H / 2, -D + WALL_T / 2));
   if (st.leveller === 'stepped') {   // hall floor with the stepped-dock safety zones cut out (one per bay)
     const fw = W - .6, fd = D - .6; const sh = new THREE.Shape(); sh.moveTo(-fw / 2, -fd / 2); sh.lineTo(fw / 2, -fd / 2); sh.lineTo(fw / 2, fd / 2); sh.lineTo(-fw / 2, fd / 2); sh.closePath();
-    for (let i = 0; i < bays; i++) { const cx = bayX(i), hw = w / 2 - .05, z1 = -WALL_T - .04, z2 = -WALL_T - 1.42;   /* hole must lie inside the floor plane (its front edge is at -WALL_T) or earcut drops it */ const y1 = -z1 - D / 2, y2 = -z2 - D / 2;   // local y = -(world z) - D/2
+    for (let i = 0; i < bays; i++) { const cx = bayX(i), hw = stepW / 2, z1 = -WALL_T - .04, z2 = -WALL_T - 1.42;   /* hole must lie inside the floor plane (its front edge is at -WALL_T) or earcut drops it */ const y1 = -z1 - D / 2, y2 = -z2 - D / 2;   // local y = -(world z) - D/2
       const hole = new THREE.Path(); hole.moveTo(cx - hw, y1); hole.lineTo(cx + hw, y1); hole.lineTo(cx + hw, y2); hole.lineTo(cx - hw, y2); hole.closePath(); sh.holes.push(hole); }
     const fg = new THREE.ShapeGeometry(sh, 2); const uv = fg.attributes.uv, pa = fg.attributes.position; for (let i = 0; i < uv.count; i++) uv.setXY(i, pa.getX(i), pa.getY(i));
     const fm = new THREE.Mesh(fg, M.floor); fm.rotation.x = -Math.PI / 2; fm.position.set(0, DOCK_H, -D / 2); fm.receiveShadow = true; g.add(fm);
@@ -777,7 +783,7 @@ export function buildWarehouse({ mats, st, studio = false }) {
   for (let i = 0; i < bays; i++) {
     const cx = bayX(i); const bay = new THREE.Group(); bay.position.x = cx; g.add(bay);
     // dock edge plate
-    const door = buildDoor({ M, st: { ...st, bayNo: i + 1, studio, stepDown }, w, h: h + stepDown }); bay.add(door.group); rigs.doors.push(door);
+    const door = buildDoor({ M, st: { ...st, bayNo: i + 1, studio, stepDown, stepW }, w, h }); bay.add(door.group); rigs.doors.push(door);
     bay.add(box(w + .7, .14, .02, M.yellowStripe, 0, DOCK_H - .2, .07, { shadow: false }));   // yellow dock-edge marking
     const truckKind = st.truck; const bedH = TRUCKS[truckKind] && truckKind !== 'none' ? TRUCKS[truckKind].bedH : null;
     const truckRearZ = bedH != null ? .34 + (TRUCKS[truckKind].doorFaceZ || 0) : null;
