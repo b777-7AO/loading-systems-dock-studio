@@ -207,11 +207,11 @@ export function buildDoor({ M, st, w, h }) {
 }
 
 /* ---------------------------------------------------------------- Dock leveller with lip */
-export function buildLeveller({ M, st, w, bedH }) {
+export function buildLeveller({ M, st, w, bedH, truckRearZ = null }) {
   const g = new THREE.Group(); const L = LEVELLERS[st.leveller]; if (!L || st.leveller === 'none') return { group: g, animate: () => {} };
   const len = (st.levellerLen || 2500) / 1000, pw = (st.levellerW || 2000) / 1000; const lipLen = L.lipLen;
   // pit box behind the facade, plate hinged at the rear
-  const pit = new THREE.Group(); pit.position.set(0, DOCK_H, -WALL_T);
+  const pit = new THREE.Group(); pit.position.set(0, DOCK_H, 0);   // plate front edge flush with the dock face
   pit.add(box(pw + .3, .02, len + .3, M.levellerFrame, 0, -.74, -(len + .3) / 2, { shadow: false }));   // pit floor
   [-1, 1].forEach(s => pit.add(box(.15, .74, len + .3, M.plinth, s * (pw / 2 + .075), -.37, -(len + .3) / 2)));
   pit.add(box(pw + .3, .74, .15, M.plinth, 0, -.37, -(len + .3) + .075));
@@ -227,18 +227,19 @@ export function buildLeveller({ M, st, w, bedH }) {
   const lipPivot = new THREE.Group(); lipPivot.position.set(0, 0, len); lipPivot.userData.dynamic = true; hinge.add(lipPivot);
   let lip;
   if (L.lip === 'swing') { lip = box(pw - .1, .05, lipLen, M.levellerPlate, 0, 0, lipLen / 2); lipPivot.add(lip); lipPivot.add(box(pw - .1, .004, .08, M.hazard, 0, .028, lipLen - .04, { shadow: false })); lipPivot.rotation.x = Math.PI / 2 - .08; }
-  else { lip = box(pw - .1, .045, lipLen, M.levellerPlate, 0, -.002, lipLen / 2 - lipLen); lipPivot.add(lip); lip.position.z = -lipLen + .05; lip.add(box(pw - .1, .004, .08, M.hazard, 0, .025, lipLen / 2 - .04, { shadow: false })); }
+  else { lip = box(pw - .1, .045, lipLen, M.levellerPlate, 0, -.002, -lipLen / 2); lipPivot.add(lip); lip.position.z = 0; lip.add(box(pw - .1, .004, .08, M.hazard, 0, .025, -.04, { shadow: false })); }   // telescopic lip stored inside the plate, front flush with the edge
   // galvanised toe guards (side skirts)
   [-1, 1].forEach(s => { const sk = box(.02, .7, len, M.galvDark, s * (pw / 2 - .01), -.36, len / 2, { shadow: false }); hinge.add(sk); });
   mergeStatic(hinge); g.add(pit);
   const level = DOCK_H; const target = bedH == null ? DOCK_H : bedH + .02;
+  const ext = truckRearZ == null ? lipLen * .5 : Math.min(lipLen - .05, truckRearZ + .15);   // lip reach: 15 cm into the vehicle
   function animate(t) {
     const r = seg(t, 0, .45), o = seg(t, .45, .75), lo = seg(t, .75, 1);
     const upA = .16;
     const dh = target - level; const downA = Math.atan2(dh, len);
     hinge.rotation.x = -(upA * ease(r)) + (upA - downA) * ease(lo);
     if (L.lip === 'swing') lipPivot.rotation.x = (Math.PI / 2 - .08) * (1 - ease(o)) + (-hinge.rotation.x) * ease(lo);
-    else { lip.position.z = -lipLen + .05 + lipLen * .9 * ease(o); lipPivot.rotation.x = (-hinge.rotation.x) * ease(lo); }
+    else { lip.position.z = ext * ease(o); lipPivot.rotation.x = (-hinge.rotation.x) * ease(lo); }
   }
   return { group: g, animate };
 }
@@ -393,16 +394,43 @@ export function numberPlate({ M, n, w, h }) {
 
 /* ---------------------------------------------------------------- Trucks (Blender library, see ~/LS-work/blender/vehicles.py) */
 export function buildTruck({ M, kind, trailerOnly = false }) {
-  const g = new THREE.Group(); g.userData.dynamic = true; const T = TRUCKS[kind]; if (!T || kind === 'none') return { group: g, animate: () => {}, len: 0, bedH: null };
+  const g = new THREE.Group(); g.userData.dynamic = true; const T = TRUCKS[kind]; if (!T || kind === 'none') return { group: g, animate: () => {}, doors: () => {}, len: 0, bedH: null };
   const tpl = (trailerOnly && VEHICLES[T.model + '_proc']) || VEHICLES[T.model] || VEHICLES[T.model + '_proc']; const wheels = [];
+  let doors = () => {}; let planes = null;
   if (tpl) {
     const v = tpl.clone(); g.add(v);
     v.traverse(o => { if (o.name.startsWith('wheel')) wheels.push(o); if (trailerOnly && o.name === 'tractor') o.visible = false; });
+    if (!trailerOnly && T.doorW) {
+      // Rear doors: the scanned model has them painted shut. Clip that slab of the shell away (world-space planes, intersection = the door
+      // opening only), put a lit interior behind it and hang two door leaves that fold 270° against the sides as the truck arrives.
+      const zF = T.doorFaceZ, xo = T.doorW, yB = T.bedH + .02, yT = T.doorTop;
+      planes = [new THREE.Plane(new THREE.Vector3(0, 0, 1), 0), new THREE.Plane(new THREE.Vector3(0, -1, 0), 0), new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), new THREE.Plane(new THREE.Vector3(1, 0, 0), 0), new THREE.Plane(new THREE.Vector3(-1, 0, 0), 0)];
+      v.traverse(o => { if (o.isMesh && o.material && o.material.map && !/decal/.test(o.name)) { o.material = o.material.clone(); o.material.clippingPlanes = planes; o.material.clipIntersection = true; o.material.side = THREE.DoubleSide; } });
+      const depth = Math.min(4, T.len * .3), inW = 2 * xo - .02, inH = yT - yB;
+      const inside = new THREE.Group(); inside.position.set(0, yB, zF); g.add(inside);
+      inside.add(box(inW, .03, depth, M.pallet, 0, -.015, depth / 2));                                   // plank floor
+      [-1, 1].forEach(sx => inside.add(box(.02, inH, depth, M.trailerRoof, sx * (inW / 2 - .01), inH / 2, depth / 2, { shadow: false })));
+      inside.add(box(inW, .02, depth, M.trailerRoof, 0, inH - .01, depth / 2, { shadow: false }));       // ceiling
+      inside.add(box(inW, inH, .02, M.plastic, 0, inH / 2, depth - .01, { shadow: false }));             // end wall of the visible interior
+      const lamp = new THREE.PointLight(0xfff4e0, 0, 6, 1.6); lamp.position.set(0, inH - .15, 1.2); inside.add(lamp); inside.userData.lamp = lamp;
+      const hinges = [-1, 1].map(sx => { const hg = new THREE.Group(); hg.position.set(sx * (xo + .08), yB, zF - .03); g.add(hg);
+        const leaf = box(xo + .06, inH - .04, .04, M.trailerBox, -sx * (xo + .06) / 2, inH / 2, 0); hg.add(leaf);
+        [.3, inH - .3].forEach(y => hg.add(box(.05, .22, .06, M.galvDark, -sx * (xo + .06) / 2, y, .04)));   // lock bars
+        return { hg, sx }; });
+      doors = t => { const a = Math.PI * 1.5 * ease(t); hinges.forEach(({ hg, sx }) => { hg.rotation.y = sx > 0 ? -a : a; }); lamp.intensity = t > .5 ? 3 : 0; };
+    }
   } else {   // fallback if the library did not load: a plain box on wheels
     const L = T.len * .75, W = 2.5, H = 2.7, bed = T.bedH; g.add(box(W, H, L, M.trailerBox, 0, bed + H / 2, L / 2)); g.add(box(W, .35, L, M.chassis, 0, bed - .18, L / 2));
     [1.3, 2.6, 3.9].forEach(z => [-1, 1].forEach(s => { const t = cyl(T.wheelR, .32, M.tyre, s * (W / 2 - .25), T.wheelR, z, 24); t.rotation.z = Math.PI / 2; g.add(t); wheels.push(t); }));
   }
-  return { group: g, animate: dz => wheels.forEach(w => { w.rotation.x -= dz / T.wheelR; }), len: T.len, bedH: T.bedH };
+  const wp = new THREE.Vector3();
+  function updatePlanes() {
+    if (!planes) return; g.updateWorldMatrix(true, false); g.getWorldPosition(wp);
+    planes[0].constant = -(wp.z + T.doorFaceZ + .32); planes[1].constant = wp.y + T.bedH + .02; planes[2].constant = -(wp.y + T.doorTop);
+    planes[3].constant = -(wp.x + T.doorW); planes[4].constant = wp.x - T.doorW;
+  }
+  updatePlanes();
+  return { group: g, animate: dz => { wheels.forEach(w => { w.rotation.x -= dz / T.wheelR; }); updatePlanes(); }, doors, len: T.len, bedH: T.bedH };
 }
 
 /* ---------------------------------------------------------------- Interior props */
@@ -484,7 +512,8 @@ export function buildWarehouse({ mats, st, studio = false }) {
     const door = buildDoor({ M, st: { ...st, bayNo: i + 1 }, w, h }); bay.add(door.group); rigs.doors.push(door);
     bay.add(box(w + .7, .14, .02, M.yellowStripe, 0, DOCK_H - .09, .07, { shadow: false }));   // yellow dock-edge marking
     const truckKind = st.truck; const bedH = TRUCKS[truckKind] && truckKind !== 'none' ? TRUCKS[truckKind].bedH : null;
-    const lev = buildLeveller({ M, st, w, bedH }); bay.add(lev.group); rigs.levellers.push(lev);
+    const truckRearZ = bedH != null ? .34 + (TRUCKS[truckKind].doorFaceZ || 0) : null;
+    const lev = buildLeveller({ M, st, w, bedH, truckRearZ }); bay.add(lev.group); rigs.levellers.push(lev);
     const sh = buildShelter({ M, st, w, h }); bay.add(sh.group); rigs.shelters.push(sh);
     bay.add(buildBumpers({ M, st, w }));
     const rs = buildRestraint({ M, st, w }); bay.add(rs.group); rigs.restraints.push(rs);
@@ -498,7 +527,7 @@ export function buildWarehouse({ mats, st, studio = false }) {
     const cb = part('control_box', w / 2 + .7, DOCK_H + 1.4, -WALL_T - .07, { rotY: Math.PI }); if (cb) bay.add(cb); else bay.add(box(.3, .42, .12, M.white, w / 2 + .7, DOCK_H + 1.4, -WALL_T - .07));
     // truck
     if (truckKind !== 'none' && (studio ? true : (st.truckBays === 'all' || i === (st.activeBay || 0)))) {
-      const tr = buildTruck({ M, kind: truckKind }); tr.group.position.set(0, 0, 0); bay.add(tr.group); rigs.trucks.push({ ...tr, bay: i });
+      const tr = buildTruck({ M, kind: truckKind }); tr.group.position.set(0, 0, 0); bay.add(tr.group); tr.animate(0); rigs.trucks.push({ ...tr, bay: i });
     }
   }
   // mandoor leaf

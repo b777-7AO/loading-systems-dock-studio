@@ -106,7 +106,8 @@ function buildWorld() {
 function applyDocking(t, force = false) {
   if (!wh) return; const r = wh.rigs;
   const arrive = ease(Math.min(1, t / .38)); const restr = Math.max(0, Math.min(1, (t - .36) / .12)); const door = Math.max(0, Math.min(1, (t - .46) / .2)); const shel = Math.max(0, Math.min(1, (t - .5) / .22)); const lev = Math.max(0, Math.min(1, (t - .66) / .34));
-  r.trucks.forEach(tr => { const start = 31, end = .34; const z = start + (end - start) * arrive; const prev = tr.group.position.z; tr.group.position.z = z; tr.animate(prev - z); });
+  const rearDoors = Math.max(0, Math.min(1, (t - .03) / .17));
+  r.trucks.forEach(tr => { const start = 31, end = .34; const z = start + (end - start) * arrive; const prev = tr.group.position.z; tr.group.position.z = z; tr.animate(prev - z); if (tr.doors) tr.doors(rearDoors); });
   r.restraints.forEach(x => x.animate(restr)); r.doors.forEach(x => x.animate(door)); r.shelters.forEach(x => x.animate(shel)); r.levellers.forEach(x => x.animate(lev));
   r.lights.forEach(x => x.setOn(door > .3)); r.traffic.forEach(x => x.set(restr > .5 ? 'red' : 'green'));
   $('dockLabel').textContent = t < .05 ? 'Dock frei' : t < .38 ? 'Lkw fährt an' : t < .48 ? 'Wegfahrsicherung aktiv' : t < .68 ? 'Tor öffnet' : t < .98 ? 'Überladebrücke fährt auf' : 'Verladung läuft';

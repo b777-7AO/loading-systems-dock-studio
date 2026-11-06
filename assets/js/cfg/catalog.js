@@ -69,7 +69,7 @@ export const MANDOOR = { widths: [1000, 1200, 1500], heights: [2125, 2250, 2500]
 /* ---------------- Dock equipment (brochure, no price list in hand) ---------------- */
 export const LEVELLERS = {
   none: { label: 'Keine Überladebrücke', desc: 'Ebenerdiges Tor ohne Rampe.' },
-  swing: { label: 'Überladebrücke mit Klappkeil 232NG', desc: 'Elektrohydraulisch, robuster Klappkeil, für Standard-Verladestellen. Pulverbeschichtet in Serie.', lip: 'swing', lipLen: .4 },
+  swing: { label: 'Überladebrücke mit Klappkeil 232NG', desc: 'Elektrohydraulisch, robuster Klappkeil, für Standard-Verladestellen. Pulverbeschichtet in Serie.', lip: 'swing', lipLen: .5 },
   tele: { label: 'Überladebrücke mit Vorschubkeil 233NG', desc: 'Elektrohydraulisch mit teleskopierendem Vorschub bis 1000 mm: präzises Anfahren, ISO-Docking, weniger Energieverlust.', lip: 'tele', lipLen: 1.0 },
   stepped: { label: 'Stepped Dock mit Vorschubkeil', desc: 'Der Lkw dockt vollständig an, bevor das Tor öffnet. Sealed Docking gegen Energieverlust.', lip: 'tele', lipLen: 1.0, stepped: true },
   combi: { label: 'Combidock 253NG', desc: 'Für Lkw und Lieferwagen: automatischer Gewichtsausgleich, selbsttragend, kein separates Van-Dock.', lip: 'tele', lipLen: .8 },
@@ -103,7 +103,7 @@ export const ACCESSORIES = { trafficLight: { label: 'Ampel 934 rot/grün', price
 export const DOCK_CONTROL = { basic: { label: 'Einzelsteuerungen', desc: 'Tor, Überladebrücke und Torabdichtung je eigene Bedienung.' }, combi: { label: 'Kombisteuerung', desc: 'Tor, Brücke, Abdichtung und Wegfahrsicherung in einem Gehäuse, verriegelt in logischer Reihenfolge.' }, dockMgmt: { label: 'Dock Management System', desc: 'Alle Docks zentral überwacht: Status, Ampeln, Verriegelung.' } };
 
 export const FACADES = [{ id: 'panel_light', name: 'Sandwichpaneel hellgrau', hex: '#d8dadb' }, { id: 'panel_white', name: 'Sandwichpaneel weiß', hex: '#eceeee' }, { id: 'panel_dark', name: 'Sandwichpaneel anthrazit', hex: '#4a4f53' }, { id: 'brick', name: 'Klinker', hex: '#8d5b4a' }];
-export const TRUCKS = { none: { label: 'Kein Fahrzeug' }, truck: { label: 'Sattelzug 13,6 m', model: 'semi', len: 16.6, bedH: 1.30, wheelR: .51, blockZ: 3.73 }, rigid: { label: 'Lkw 7,5 t', model: 'rigid', len: 8.0, bedH: 1.05, wheelR: .43, blockZ: 3.13 }, van: { label: 'Lieferwagen', model: 'van', len: 7.0, bedH: .65, wheelR: .36, blockZ: 2.18 } };
+export const TRUCKS = { none: { label: 'Kein Fahrzeug' }, truck: { label: 'Sattelzug 13,6 m', model: 'semi', len: 16.6, bedH: 1.30, wheelR: .51, blockZ: 3.73, doorFaceZ: .04, doorW: 1.2, doorTop: 3.88 }, rigid: { label: 'Lkw 7,5 t', model: 'rigid', len: 8.0, bedH: 1.05, wheelR: .43, blockZ: 3.13, doorFaceZ: .03, doorW: 1.12, doorTop: 3.06 }, van: { label: 'Lieferwagen', model: 'van', len: 7.0, bedH: .65, wheelR: .36, blockZ: 2.18, doorFaceZ: .08, doorW: .92, doorTop: 2.0 } };
 
 export const LIMITS = { w: [2000, 8000], h: [2000, 6500], bays: [1, 6] };
 export const PRESETS = [
