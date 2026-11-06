@@ -81,7 +81,7 @@ export function registerVehicles(gltfScene, M, { rename = {} } = {}) {
   gltfScene.traverse(o => {
     if (!o.isMesh) return; o.castShadow = true; o.receiveShadow = true; o.userData.shared = true;
     const m = M.vehicleMap[o.material.name]; if (m) o.material = m;
-    else if (o.material.map) { o.material.envMapIntensity = 1.0; o.material.metalness = .25; o.material.roughness = 1.0; }   // AI-scanned vehicle: keep its PBR textures, tame the metallic map (painted panels, not chrome)
+    else if (o.material.map) { o.material.envMapIntensity = 1.0; o.material.metalness = .25; o.material.roughness = 1.0; if (/^semi/.test(o.name)) { o.material.color.setScalar(1.32); o.material.roughness = .9; o.material.metalness = .15; } }   // AI-scanned vehicle: keep its PBR textures, tame the metallic map (painted panels, not chrome); the semi scan's base colour is grey, lift it to white
     if (/decal/.test(o.name) || o.material === M.decalDark) { o.material = M.decalDark; o.castShadow = false; o.receiveShadow = false; o.renderOrder = 2; }
   });
   gltfScene.children.forEach(c => { c.position.set(0, 0, 0); c.rotation.set(0, 0, 0); VEHICLES[rename[c.name] || c.name] = c; if (c.name === 'rigid' && !rename[c.name]) reshapeRigid(c);
