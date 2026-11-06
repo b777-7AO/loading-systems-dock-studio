@@ -761,10 +761,11 @@ export function buildWarehouse({ mats, st, studio = false }) {
     // cut-out exactly the pit footprint (pit = plate + .02 each way, frame angle .04), measured from the plate edge at plateEdgeZ
     const len = (st.levellerLen || 2500) / 1000 + .06, pw = (st.levellerW || 2000) / 1000 + .08, bw = w + 2.6, bd = len + 1.6, zf = stepDown ? -WALL_T - .12 + .03 : -.24;   // block front face at z = .06 like the hall's dock face: the leveller's front edge is in line with the bay (stepped: pit starts behind the slit)
     [-1, 1].forEach(sx => g.add(box((bw - pw) / 2, DOCK_H, bd, M.plinth, sx * (pw / 2 + (bw - pw) / 4), DOCK_H / 2, zf - bd / 2)));
-    g.add(box(pw, DOCK_H, bd - len, M.plinth, 0, DOCK_H / 2, zf - len - (bd - len) / 2));          // behind the pit
+    const pe = stepDown ? -WALL_T - .12 : 0, pitBack = pe - ((st.levellerLen || 2500) / 1000 + .03), bk = zf - bd;   // pit ends 3 cm behind the plate's rear edge, measured from the plate edge (not from the block front)
+    g.add(box(pw, DOCK_H, pitBack - bk, M.plinth, 0, DOCK_H / 2, (pitBack + bk) / 2));              // behind the pit: floor closed right up to the plate's rear hinge cover
     const fh = DOCK_H - (stepDown ? .54 : .08), sw = stepDown ? stepW : pw;   /* over the leveller width the face stops 8 cm below the plate, as in the hall: the leveller's steel front edge forms the dock front, no concrete in front of it */                              // front strip (dock face): on a stepped dock open over the slit width down to the pit bottom (no floor in front of the leveller)
     g.add(box(sw, fh, .3, M.plinth, 0, fh / 2, zf + .15)); [-1, 1].forEach(sx => g.add(box((bw - sw) / 2, DOCK_H, .3, M.plinth, sx * (sw / 2 + (bw - sw) / 4), DOCK_H / 2, zf + .15)));
-    g.add(box(pw, DOCK_H - .78, len, M.plinth, 0, (DOCK_H - .78) / 2, zf - len / 2));                // under the pit
+    g.add(box(pw, DOCK_H - .78, zf + .3 - pitBack, M.plinth, 0, (DOCK_H - .78) / 2, (zf + .3 + pitBack) / 2));   // under the pit
   } else {
   const front = wall(W, H + .4, WALL_T, openings, facMat); front.position.set(x0, 0, 0); g.add(front);
   // dock wall: concrete face below the openings, split per bay
