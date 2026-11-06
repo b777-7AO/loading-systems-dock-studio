@@ -65,7 +65,7 @@ let skyEnv = sky; new RGBELoader(manager).load(TEX + 'env_yard_1k.hdr', t => { t
 scene.background = sky; scene.environment = sky; scene.environmentIntensity = .55; scene.backgroundIntensity = .9; scene.backgroundRotation.set(0, SKY_ROT, 0); scene.environmentRotation.set(0, SKY_ROT, 0);
 const pmrem = new THREE.PMREMGenerator(renderer); const studioEnv = pmrem.fromScene(new RoomEnvironment(), .04).texture; pmrem.dispose();
 const sunDir = new THREE.Vector3(.555, .742, .377).applyAxisAngle(new THREE.Vector3(0, 1, 0), -SKY_ROT).normalize();
-const camera = new THREE.PerspectiveCamera(38, 1, .2, 400);
+const camera = new THREE.PerspectiveCamera(38, 1, .2, 1200);
 const controls = new OrbitControls(camera, canvas); controls.enableDamping = true; controls.dampingFactor = .08; controls.enablePan = !coarse; controls.maxPolarAngle = Math.PI / 2 - .02; controls.screenSpacePanning = false; controls.rotateSpeed = coarse ? .7 : 1;
 controls.addEventListener('change', invalidate);
 class AOPass extends GTAOPass { overrideVisibility() { super.overrideVisibility(); this.scene.traverse(o => { if (o.userData.cutout) o.visible = false; }); } }
@@ -141,20 +141,20 @@ function applyDocking(t, force = false) {
 function views() {
   const { W, H, D, w, h, bayX } = dims; const cx = state.mode === 'studio' ? 0 : bayX(state.activeBay); const yc = DOCK_H + h / 2;
   return {
-    yard: { pos: [cx + 17, 5.5, 27], tgt: [cx - 3, 2.2, 0], polar: .3, dist: [4, 180] },
-    bay: { pos: [cx + 9, 2.6, 6.5], tgt: [cx + .5, yc - .3, .6], polar: .3, dist: [2, 40] },
-    inside: { pos: [cx + 1.5, DOCK_H + 1.7, state.mode === 'studio' ? -4.6 : -7.5], tgt: [cx, yc, 0], polar: .3, dist: [1.5, 70] },
-    hall: { pos: [cx - 5, DOCK_H + 3.2, -13], tgt: [cx + 1, DOCK_H + 1.4, -2], polar: .3, dist: [2, 140] },
-    top: { pos: [cx, 34, 12], tgt: [cx, 0, -2], polar: .05, dist: [10, 260] },
-    truck: (() => { const tr = wh && wh.rigs.trucks[0]; const tz = tr ? tr.group.position.z : 12; const L = tr ? tr.len : 14; return { pos: [cx + 7, 3.2, tz + L * .55 + 11], tgt: [cx - .5, 2.0, tz + L * .45], polar: .3, dist: [3, 140] }; })(),
-    studio: { pos: [w * 1.2 + 4, 2.4, 9.5], tgt: [0, yc + .2, 0], polar: .25, dist: [3, 30] },
-    detail: { pos: [-1.8, DOCK_H + 1.4, 3.4], tgt: [-.5, DOCK_H + 1.1, 0], polar: .25, dist: [1, 30] },
+    yard: { pos: [cx + 17, 5.5, 27], tgt: [cx - 3, 2.2, 0], polar: .3, dist: [4, 320] },
+    bay: { pos: [cx + 9, 2.6, 6.5], tgt: [cx + .5, yc - .3, .6], polar: .3, dist: [2, 120] },
+    inside: { pos: [cx + 1.5, DOCK_H + 1.7, state.mode === 'studio' ? -4.6 : -7.5], tgt: [cx, yc, 0], polar: .3, dist: [1.5, 200] },
+    hall: { pos: [cx - 5, DOCK_H + 3.2, -13], tgt: [cx + 1, DOCK_H + 1.4, -2], polar: .3, dist: [2, 260] },
+    top: { pos: [cx, 34, 12], tgt: [cx, 0, -2], polar: .05, dist: [10, 400] },
+    truck: (() => { const tr = wh && wh.rigs.trucks[0]; const tz = tr ? tr.group.position.z : 12; const L = tr ? tr.len : 14; return { pos: [cx + 7, 3.2, tz + L * .55 + 11], tgt: [cx - .5, 2.0, tz + L * .45], polar: .3, dist: [3, 260] }; })(),
+    studio: { pos: [w * 1.2 + 4, 2.4, 9.5], tgt: [0, yc + .2, 0], polar: .25, dist: [3, 90] },
+    detail: { pos: [-1.8, DOCK_H + 1.4, 3.4], tgt: [-.5, DOCK_H + 1.1, 0], polar: .25, dist: [1, 90] },
   };
 }
 function goView(name, instant = false) {
   const all = views(); const v = all[name] || all[state.mode === 'studio' ? 'studio' : 'yard']; state.view = name;
   document.querySelectorAll('#cfgViews button').forEach(b => b.classList.toggle('is-active', b.dataset.view === name));
-  controls.minDistance = .5; controls.maxDistance = 320; controls.minPolarAngle = 0;
+  controls.minDistance = .5; controls.maxDistance = 500; controls.minPolarAngle = 0;
   const k = camera.aspect < 1 ? 1 + (1 - camera.aspect) * (mobile ? .35 : 1.2) : 1; const pos = v.tgt.map((t, i) => t + (v.pos[i] - t) * k);
   if (instant) { camera.position.fromArray(pos); controls.target.fromArray(v.tgt); controls.minDistance = v.dist[0]; controls.maxDistance = v.dist[1]; controls.minPolarAngle = v.polar; controls.update(); invalidate(); return; }
   pendingLimits = v; camTween = { from: camera.position.clone(), fromT: controls.target.clone(), to: new THREE.Vector3().fromArray(pos), toT: new THREE.Vector3().fromArray(v.tgt), start: performance.now(), dur: 1000 };
