@@ -9,9 +9,9 @@ import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import * as C from './cfg/catalog.js?v=26';
-import { createMaterials, TEX } from './cfg/materials.js?v=26';
-import { buildWarehouse, buildStudio, dispose, DOCK_H, ease, registerParts, registerVehicles, mergeStatic, QUALITY } from './cfg/scene.js?v=26';
+import * as C from './cfg/catalog.js?v=27';
+import { createMaterials, TEX } from './cfg/materials.js?v=27';
+import { buildWarehouse, buildStudio, dispose, DOCK_H, ease, registerParts, registerVehicles, mergeStatic, QUALITY } from './cfg/scene.js?v=27';
 
 const $ = id => document.getElementById(id);
 const q = new URLSearchParams(location.search);
@@ -93,6 +93,20 @@ const studioFill = new THREE.DirectionalLight(0xe8f0ff, .8); studioFill.position
 const world = new THREE.Group(); scene.add(world);
 let wh = null, studioGroup = null, dims = {};
 let docking = 0, dockTarget = 0, dockAnimStart = null, dockFrom = 0, camTween = null, pendingLimits = null;
+/* manual overrides for the door and the leveller (buttons next to the docking control): {from,to,start,dur,value,release} */
+let manDoor = null, manLev = null;
+const seqDoor = t => Math.max(0, Math.min(1, (t - .46) / .2)), seqLev = t => Math.max(0, Math.min(1, (t - .66) / .34));
+function manualToggle(which) {
+  const cur = which === 'door' ? (manDoor ? manDoor.value : seqDoor(docking)) : (manLev ? manLev.value : seqLev(docking));
+  const to = cur > .5 ? 0 : 1; const o = { from: cur, to, start: performance.now(), dur: which === 'door' ? 2600 : 3400, value: cur, release: false };
+  if (which === 'door') manDoor = o; else manLev = o; dockAnimStart = null; updateManualButtons(); invalidate();
+}
+function updateManualButtons() {
+  const d = manDoor ? manDoor.to : seqDoor(docking), l = manLev ? manLev.to : seqLev(docking);
+  const db = $('doorBtn'), lb = $('levBtn'); if (!db || !lb) return;
+  db.querySelector('span').textContent = d > .5 ? 'Tor schließen' : 'Tor öffnen'; db.classList.toggle('is-on', d > .5);
+  lb.querySelector('span').textContent = l > .5 ? 'Brücke senken' : 'Brücke heben'; lb.classList.toggle('is-on', l > .5);
+}
 function buildWorld() {
   if (wh) { world.remove(wh.group); dispose(wh.group); wh = null; } if (studioGroup) { world.remove(studioGroup); dispose(studioGroup); studioGroup = null; }
   const ral = C.RAL.find(r => r.id === state.ral); mats.applyDoor(ral.hex, { kind: C.DOORS[state.door].kind, metallic: ral.metallic });
@@ -109,8 +123,10 @@ function applyDocking(t, force = false) {
   const arrive = ease(Math.min(1, t / .38)); const restr = Math.max(0, Math.min(1, (t - .36) / .12)); const door = Math.max(0, Math.min(1, (t - .46) / .2)); const shel = Math.max(0, Math.min(1, (t - .31) / .07)); /* curtains fold while the vehicle pushes into the shelter */ const lev = Math.max(0, Math.min(1, (t - .66) / .34));
   const rearDoors = Math.max(0, Math.min(1, (t - .03) / .17));
   r.trucks.forEach(tr => { const start = 31, end = .34; const z = start + (end - start) * arrive; const prev = tr.group.position.z; tr.group.position.z = z; tr.animate(prev - z); if (tr.doors) tr.doors(rearDoors); });
-  r.restraints.forEach(x => x.animate(restr)); r.doors.forEach(x => x.animate(door)); r.shelters.forEach(x => x.animate(shel)); r.levellers.forEach(x => x.animate(lev));
-  r.lights.forEach(x => x.setOn(door > .3)); r.traffic.forEach(x => x.set(restr > .5 ? 'red' : 'green'));
+  const doorV = manDoor ? manDoor.value : door, levV = manLev ? manLev.value : lev;
+  r.restraints.forEach(x => x.animate(restr)); r.doors.forEach(x => x.animate(doorV)); r.shelters.forEach(x => x.animate(shel)); r.levellers.forEach(x => x.animate(levV));
+  r.lights.forEach(x => x.setOn(doorV > .3)); r.traffic.forEach(x => x.set(restr > .5 ? 'red' : 'green'));
+  updateManualButtons();
   $('dockLabel').textContent = t < .05 ? 'Dock frei' : t < .38 ? 'Lkw fährt an' : t < .48 ? 'Wegfahrsicherung aktiv' : t < .68 ? 'Tor öffnet' : t < .98 ? 'Überladebrücke fährt auf' : 'Verladung läuft';
   invalidate();
 }
@@ -142,7 +158,10 @@ function setMode(mode) {
   $('viewsYard').hidden = mode === 'studio'; $('viewsStudio').hidden = mode !== 'studio';
   buildWorld(); goView(mode === 'studio' ? 'studio' : 'yard', true); history.replaceState(null, '', hash());
 }
-function setDock(open) { dockTarget = open ? 1 : 0; dockFrom = docking; dockAnimStart = performance.now(); const b = $('dockBtn'); b.querySelector('span').textContent = open ? 'Lkw abfahren' : 'Lkw andocken'; b.classList.toggle('is-open', open); }
+function setDock(open) { dockTarget = open ? 1 : 0; dockFrom = docking; dockAnimStart = performance.now();
+  // hand manual overrides back to the sequence: blend from the manual state to what the sequence expects at the current position
+  if (manDoor) manDoor = { from: manDoor.value, to: seqDoor(docking), start: performance.now(), dur: 1200, value: manDoor.value, release: true };
+  if (manLev) manLev = { from: manLev.value, to: seqLev(docking), start: performance.now(), dur: 1200, value: manLev.value, release: true }; const b = $('dockBtn'); b.querySelector('span').textContent = open ? 'Lkw abfahren' : 'Lkw andocken'; b.classList.toggle('is-open', open); }
 
 /* ------------------------------------------------------------------ Mobile bottom sheet */
 const SHEET = { peek: 0, half: 0, full: 0 }; let sheetState = 'half';
@@ -193,6 +212,10 @@ function loop(now) {
   if (document.hidden) return;
   if (camTween) { const k = Math.min(1, (now - camTween.start) / camTween.dur), e = ease(k); camera.position.lerpVectors(camTween.from, camTween.to, e); controls.target.lerpVectors(camTween.fromT, camTween.toT, e); if (k >= 1) { camTween = null; if (pendingLimits) { controls.minDistance = pendingLimits.dist[0]; controls.maxDistance = pendingLimits.dist[1]; controls.minPolarAngle = pendingLimits.polar; pendingLimits = null; } } dirty = true; }
   if (dockAnimStart !== null) { const k = Math.min(1, (now - dockAnimStart) / 9000); docking = dockFrom + (dockTarget - dockFrom) * k; applyDocking(docking); $('dockRange').value = Math.round(docking * 100); if (k >= 1) dockAnimStart = null; }
+  let manBusy = false;
+  [['door', manDoor], ['lev', manLev]].forEach(([w, o]) => { if (!o) return; const k = Math.min(1, (now - o.start) / o.dur); o.value = o.from + (o.to - o.from) * ease(k); manBusy = true;
+    if (k >= 1) { if (o.release) { if (w === 'door') manDoor = null; else manLev = null; } else o.done = true; } });
+  if (manBusy) { applyDocking(docking); if (!manDoor || manDoor.done) { if (!manLev || manLev.done) { /* settled */ } } }
   if (controls.update()) dirty = true;
   const keepGoing = now < redrawUntil || !overlayDone;
   if (!dirty && !keepGoing) { perf.last = 0; return; }
@@ -344,7 +367,8 @@ function sizeInput(id, key) { const e = $(id); const commit = () => { let v = pa
 sizeInput('inpW', 'w'); sizeInput('inpH', 'h');
 $('resetBtn').addEventListener('click', () => { history.replaceState(null, '', location.pathname); location.reload(); });
 $('dockBtn').addEventListener('click', () => { setDock(dockTarget === 0); if (mobile && sheetState !== 'peek') setSheet('peek'); });
-$('dockRange').addEventListener('input', e => { dockAnimStart = null; docking = dockTarget = e.target.value / 100; applyDocking(docking); $('dockBtn').querySelector('span').textContent = docking > .5 ? 'Lkw abfahren' : 'Lkw andocken'; });
+$('doorBtn').addEventListener('click', () => manualToggle('door')); $('levBtn').addEventListener('click', () => manualToggle('lev'));
+$('dockRange').addEventListener('input', e => { dockAnimStart = null; manDoor = manLev = null; updateManualButtons(); docking = dockTarget = e.target.value / 100; applyDocking(docking); $('dockBtn').querySelector('span').textContent = docking > .5 ? 'Lkw abfahren' : 'Lkw andocken'; });
 document.querySelectorAll('.cfg-views button').forEach(b => b.addEventListener('click', () => { goView(b.dataset.view); if (mobile && sheetState !== 'peek') setSheet('peek'); }));
 document.querySelectorAll('.cfg-tab').forEach(t => t.addEventListener('click', () => setMode(t.dataset.mode)));
 document.querySelectorAll('.cfg-step-head').forEach(h => h.addEventListener('click', () => h.parentElement.classList.toggle('is-collapsed')));

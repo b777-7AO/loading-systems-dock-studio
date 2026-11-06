@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="assets/css/style.css?v=2">
-  <link rel="stylesheet" href="assets/css/konfigurator.css?v=24">
+  <link rel="stylesheet" href="assets/css/konfigurator.css?v=25">
   <link rel="preload" href="assets/models/vehicles.glb?v=8" as="fetch" crossorigin>
   <script type="importmap">{ "imports": { "three": "./assets/vendor/three/three.module.js", "three/addons/": "./assets/vendor/three/addons/" } }</script>
 </head>
@@ -40,6 +40,9 @@
         <div class="cfg-dock">
           <div class="cfg-dock-row"><span class="cfg-dock-label" id="dockLabel">Dock frei</span><input type="range" id="dockRange" min="0" max="100" value="0" aria-label="Andockvorgang"></div>
           <button type="button" class="btn btn-primary btn-sm" id="dockBtn"><svg viewBox="0 0 24 24"><path d="M3 15V7h11v8M14 10h4l3 3v2h-7"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/></svg><span>Lkw andocken</span></button>
+          <span class="cfg-dock-sep" aria-hidden="true"></span>
+          <button type="button" class="btn btn-ghost btn-sm cfg-manual" id="doorBtn" title="Tor einzeln öffnen oder schließen"><svg viewBox="0 0 24 24"><path d="M4 20V5h16v15M4 9h16M4 13h16M4 17h16"/></svg><span>Tor öffnen</span></button>
+          <button type="button" class="btn btn-ghost btn-sm cfg-manual" id="levBtn" title="Überladebrücke einzeln heben oder senken"><svg viewBox="0 0 24 24"><path d="M3 16h10l8-5M3 16v3h10v-3M12 7l3-3 3 3M15 4v8"/></svg><span>Brücke heben</span></button>
           <button type="button" class="btn btn-ghost btn-sm cfg-save" id="saveImage" aria-label="Bild speichern"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg><span>Bild</span></button>
         </div>
       </div>
@@ -157,6 +160,6 @@
 
   <div data-include="partials/footer.html" data-root=""></div>
   <script src="assets/js/main.js"></script>
-  <script type="module" src="assets/js/konfigurator.js?v=26"></script>
+  <script type="module" src="assets/js/konfigurator.js?v=27"></script>
 </body>
 </html>
