@@ -21,7 +21,7 @@ let mobile = mobileMQ.matches; QUALITY.mobile = mobile || coarse;
 /* ------------------------------------------------------------------ State */
 const state = {
   door: 'dockdoor', w: 3000, h: 3250, ral: '9002', panel: 'industrie', lift: 'normal', lift620: 'SL', windows: 'rect', windowCount: 1, fullvision: 'none', wicket: 'none', wicketLock: 'handle',
-  operation: 'rope', lock: 'none', safety: [], controls: [], numbers: true, numberStyle: 'door', grille: false,
+  operation: 'rope', lock: 'none', safety: [], controls: [], numbers: true, numberStyle: 'plate', grille: false,
   leveller: 'tele', levellerLen: 2500, levellerW: 2000, levellerCap: 'std', shelter: 'curtain', bumper: 'rubber', restraint: 'auto', light: 'led', trafficLight: true, bollards: true, wheelGuides: true, dockControl: 'combi',
   mandoor: 'none', mandoorW: 1000, mandoorH: 2125, mandoorLock: 'std', mandoorThermal: true,
   bays: 3, activeBay: 1, truck: 'truck', truckBays: 'one', facade: 'panel_light', interiorLight: 'led_line',

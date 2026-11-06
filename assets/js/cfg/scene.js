@@ -387,7 +387,8 @@ export function digitDecal(n, size) {
 export function numberPlate({ M, n, w, h }) {
   const c = document.createElement('canvas'); c.width = 256; c.height = 256; const ctx = c.getContext('2d'); ctx.fillStyle = '#e00034'; ctx.fillRect(0, 0, 256, 256); ctx.fillStyle = '#fff'; ctx.font = 'bold 170px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(String(n), 128, 136);
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
-  const m = new THREE.Mesh(new THREE.PlaneGeometry(.6, .6), new THREE.MeshStandardMaterial({ map: t, roughness: .6 })); m.position.set(-w / 2 - .25, DOCK_H + h + 1.0, .012); m.castShadow = false; return m;
+  // red dock number on the facade, centred above the shelter head (as on the LS reference bays)
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(.95, .95), new THREE.MeshStandardMaterial({ map: t, roughness: .6 })); m.position.set(0, DOCK_H + h + 1.6, .012); m.castShadow = false; return m;
 }
 
 /* ---------------------------------------------------------------- Trucks (Blender library, see ~/LS-work/blender/vehicles.py) */
