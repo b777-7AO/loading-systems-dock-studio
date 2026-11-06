@@ -95,7 +95,7 @@ export function registerVehicles(gltfScene, M, { rename = {} } = {}) {
 const VAN_LIFT = .30;
 function reshapeVan(root) {
   root.traverse(o => { if (!o.isMesh || o.geometry.userData.reshaped) return; const pa = o.geometry.attributes.position;
-    for (let i = 0; i < pa.count; i++) { const y = pa.getY(i); if (y > .9) pa.setY(i, y + VAN_LIFT); else if (y > .5) pa.setY(i, y + VAN_LIFT * (y - .5) / .4); }
+    for (let i = 0; i < pa.count; i++) { const y = pa.getY(i); if (y > .95) pa.setY(i, y + VAN_LIFT); else if (y > .75) pa.setY(i, y + VAN_LIFT * (y - .75) / .2); }   // sill, bumper and load floor (below .75) stay where the scan has them
     pa.needsUpdate = true; o.geometry.computeBoundingBox(); o.geometry.computeBoundingSphere(); o.geometry.userData.reshaped = true; });
 }
 function reshapeRigid(root) {
@@ -823,12 +823,15 @@ export function buildWarehouse({ mats, st, studio = false }) {
     // the mesh is rotated -90° about x and sits at z = -D/2, so world z = -(local y) - D/2: the FRONT edge (world z = -WALL_T) is local y = -fd/2
     sh.moveTo(-fw / 2, fd / 2); sh.lineTo(fw / 2, fd / 2); sh.lineTo(fw / 2, -fd / 2);
     const isSt_pLen = (st.levellerLen || 2500) / 1000 + .02, isSt_pW = (st.levellerW || 2000) / 1000 + .04;
+    const isCombi = st.leveller === 'combi';
     if (isStepped) for (let i = bays - 1; i >= 0; i--) { const cx = bayX(i), hw = stepW / 2, pw2 = isSt_pW / 2, ys = -fd / 2 + .12, yp = -fd / 2 + .12 + isSt_pLen + .01;   // slit (stepW wide) running straight into the pit (pW wide): one cut-out in the front edge
       sh.lineTo(cx + hw, -fd / 2); sh.lineTo(cx + hw, ys); sh.lineTo(cx + pw2, ys); sh.lineTo(cx + pw2, yp); sh.lineTo(cx - pw2, yp); sh.lineTo(cx - pw2, ys); sh.lineTo(cx - hw, ys); sh.lineTo(cx - hw, -fd / 2); }
+    else if (isCombi) for (let i = bays - 1; i >= 0; i--) { const cx = bayX(i), pw2 = isSt_pW / 2, yp = -fd / 2 + .04 + isSt_pLen + .01;   // combi: the pit is open to the front, the floor is cut right through its front edge (no strip of floor in front of the platform)
+      sh.lineTo(cx + pw2, -fd / 2); sh.lineTo(cx + pw2, yp); sh.lineTo(cx - pw2, yp); sh.lineTo(cx - pw2, -fd / 2); }
     sh.lineTo(-fw / 2, -fd / 2); sh.closePath(); const pLen = (st.levellerLen || 2500) / 1000 + .02, pW = (st.levellerW || 2000) / 1000 + .04; const pEdge = isStepped ? -WALL_T - .12 : 0;
     const addHole = (cx, hw, z1, z2) => { const y1 = -z1 - D / 2, y2 = -z2 - D / 2; /* local y = -(world z) - D/2 */ const hole = new THREE.Path(); hole.moveTo(cx - hw, y1); hole.lineTo(cx + hw, y1); hole.lineTo(cx + hw, y2); hole.lineTo(cx - hw, y2); hole.closePath(); sh.holes.push(hole); };
     for (let i = 0; i < bays; i++) { const cx = bayX(i);
-      if (!isStepped) addHole(cx, pW / 2, Math.min(pEdge, -WALL_T - .04), pEdge - pLen - .01); }   // pit (stepped: part of the front cut-out)
+      if (!isStepped && !isCombi) addHole(cx, pW / 2, Math.min(pEdge, -WALL_T - .04), pEdge - pLen - .01); }   // pit (stepped / combi: part of the front cut-out)
     const fg = new THREE.ShapeGeometry(sh, 2); const uv = fg.attributes.uv, pa = fg.attributes.position; for (let i = 0; i < uv.count; i++) uv.setXY(i, pa.getX(i), pa.getY(i));
     const fm = new THREE.Mesh(fg, M.floor); fm.rotation.x = -Math.PI / 2; fm.position.set(0, DOCK_H, -D / 2); fm.receiveShadow = true; g.add(fm);
   } else g.add(plane(W - .6, D - .6, M.floor, 0, DOCK_H, -D / 2));
