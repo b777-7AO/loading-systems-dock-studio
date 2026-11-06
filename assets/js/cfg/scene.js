@@ -342,13 +342,19 @@ export function buildRestraint({ M, st, w }) {
   // carriage with the swing arm: parked at the yard end, travels to the rear wheel, then the arm swings across under the trailer
   const zPark = zEnd - .4;
   const carriage = new THREE.Group(); carriage.name = 'restraint_carriage'; carriage.position.set(X, .22, zPark); carriage.userData.dynamic = true; g.add(carriage);
-  carriage.add(box(.34, .26, .56, M.galvDark, 0, .02, 0));
+  carriage.add(box(.5, .26, .56, M.galvDark, 0, .02, 0));   // housing straddles the rail, the telescopic tube sits inside it
   if (auto) carriage.add(box(.3, .09, .36, M.sign, 0, .2, 0, { shadow: false }));   // LS name plate on the housing
-  const arm = new THREE.Group(); arm.name = 'restraint_arm'; arm.position.set(-.17, .08, -.2); carriage.add(arm);
-  const armL = 1.25; const tube = cyl(.05, armL, M.galv, 0, 0, armL / 2, 14); tube.rotation.x = Math.PI / 2; arm.add(tube);
-  const collar = cyl(.065, .16, M.galv, 0, 0, .1, 14); collar.rotation.x = Math.PI / 2; arm.add(collar); arm.add(rbox(.16, .14, .12, .02, M.bumperRubber, 0, 0, armL - .04));
+  // telescopic arm: it points across the lane and slides out of the housing sideways under the trailer (no swing)
+  const arm = new THREE.Group(); arm.name = 'restraint_arm'; arm.position.set(-.17, .08, -.2); arm.rotation.y = -Math.PI / 2; carriage.add(arm);
+  const outerL = .9; const outer = cyl(.055, outerL, M.galv, 0, 0, .5 - outerL / 2, 14); outer.rotation.x = Math.PI / 2; arm.add(outer);   // fixed tube: .5 m visible beside the housing, the rest inside it
+  const collar = cyl(.068, .12, M.galv, 0, 0, .06, 14); collar.rotation.x = Math.PI / 2; arm.add(collar);
+  const inner = new THREE.Group(); inner.name = 'restraint_arm_inner'; arm.add(inner);
+  const innerL = .9; const tube = cyl(.042, innerL, M.galv, 0, 0, innerL / 2, 14); tube.rotation.x = Math.PI / 2; inner.add(tube);
+  inner.add(rbox(.16, .14, .12, .02, M.bumperRubber, 0, 0, innerL - .04));
+  const inMin = .5 - innerL, inMax = inMin + .9;   // retracted: pad flush with the fixed tube; extended: pad 1.4 m from the rail, in front of the wheels
+  inner.position.z = inMin;
   const travel = zPark - zTarget;
-  animate = t => { carriage.position.z = zPark - travel * seg(t, 0, .6); arm.rotation.y = -Math.PI / 2 * ease(seg(t, .6, 1)); };
+  animate = t => { carriage.position.z = zPark - travel * seg(t, 0, .6); inner.position.z = inMin + (inMax - inMin) * ease(seg(t, .6, 1)); };
   return { group: g, animate };
 }
 export function buildDockLight({ M, st, w, h }) {
