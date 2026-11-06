@@ -126,6 +126,10 @@ function sectionalLeaf(w, h, ph, st, M, d) {
       if (i < n - 1) { const y = H / 2; const l = part('side_hinge', -w / 2 + .03, y, -t / 2 - .002, { rotY: Math.PI }); const r = part('side_hinge', w / 2 - .03, y, -t / 2 - .002, { rotY: Math.PI });
         if (l) p.add(l); if (r) { r.scale.x = -1; p.add(r); } for (let k = 1; k <= nCentre; k++) { const c = part('centre_hinge', -w / 2 + k * (w / (nCentre + 1)), y, -t / 2 - .002, { rotY: Math.PI }); if (c) p.add(c); } }
     }
+    // rollers (galvanised wheel on a stem) at the top edge of each panel, both sides, running in the C-channel; extra pair at the bottom of the lowest panel
+    const rollerAt = yr => [-1, 1].forEach(sx => { const stem = cyl(.006, .06, M.galvDark, sx * (w / 2 + .03), yr, -t / 2 - .035, 8); stem.rotation.z = Math.PI / 2; p.add(stem);
+      const wheel = cyl(.023, .012, M.galvDark, sx * (w / 2 + .055), yr, -t / 2 - .035, 18); wheel.rotation.z = Math.PI / 2; p.add(wheel); });
+    rollerAt(H / 2 - .07); if (i === 0) rollerAt(-H / 2 + .07);
     p.position.y = H * i + H / 2; g.add(p); parts.push({ p, y0: H * i + H / 2 });
   }
   // bottom panel: seal profile, flush handle, Loading Systems logo plate; wicket outline
@@ -168,6 +172,21 @@ function stripsLeaf(w, h, M) {
   return g;
 }
 
+/* Sectional door track: continuous galvanised C-channel (50 x 32 mm, opening towards the door) swept along the roller path:
+   vertical section beside the opening, 90° bend, horizontal section under the ceiling. Built in the leaf frame at x = 0. */
+class ArcYZ extends THREE.Curve { constructor(cy, cz, r, a0, a1) { super(); this.cy = cy; this.cz = cz; this.r = r; this.a0 = a0; this.a1 = a1; }
+  getPoint(t, o = new THREE.Vector3()) { const a = this.a0 + (this.a1 - this.a0) * t; return o.set(0, this.cy + this.r * Math.sin(a), this.cz + this.r * Math.cos(a)); } }
+export function trackGeometry({ Ht, R, Rr, zo, horizLen, vertical, mirror = false }) {
+  const path = new THREE.CurvePath();
+  path.add(new THREE.LineCurve3(new THREE.Vector3(0, .04, -zo), new THREE.Vector3(0, Ht, -zo)));
+  if (!vertical) { path.add(new ArcYZ(Ht, -R, Rr, 0, Math.PI / 2)); path.add(new THREE.LineCurve3(new THREE.Vector3(0, Ht + Rr, -R), new THREE.Vector3(0, Ht + Rr, -R - horizLen))); }
+  const m = mirror ? -1 : 1;   // profile Y = sideways (binormal); the opening must face the door
+  const pts = [[-.03, 0], [-.012, 0], [-.012, .0025], [-.0275, .0025], [-.0275, .03], [.0275, .03], [.0275, .0025], [.012, .0025], [.012, 0], [.03, 0], [.03, .0325], [-.03, .0325]].map(([x, y]) => new THREE.Vector2(x, y * m));
+  const shape = new THREE.Shape(pts);
+  const g = new THREE.ExtrudeGeometry(shape, { steps: vertical ? 2 : 56, bevelEnabled: false, extrudePath: path });
+  g.computeVertexNormals(); return g;
+}
+
 /* ---------------------------------------------------------------- Door rig with tracks + animate(t) */
 export function buildDoor({ M, st, w, h }) {
   const d = DOORS[st.door]; const g = new THREE.Group(); g.position.y = DOCK_H; const zL = -WALL_T - .06;
@@ -182,10 +201,14 @@ export function buildDoor({ M, st, w, h }) {
     const parts = leaf.userData.parts, H = leaf.userData.H;
     const R = vertical ? 0 : .42, Ht = h + .12 + (vertical ? h : hl);
     const heavy = d.priced === 'hs620';   // 620NG: self-supporting galvanised frame columns, FU motor at the shaft
+    // tracks: continuous C-channel on each side (roller path), wall angle behind the vertical part, hanger angles for the horizontal part
+    const t0 = st.panel === 'iso80' ? .08 : .04, zo = t0 / 2 + .035, Rr = Math.max(.05, R - zo), horizLen = h + .6, tx = w / 2 + .055;
+    const trackMat = M.galv;
     [-1, 1].forEach(s => {
-      g.add(box(heavy ? .14 : .06, Ht + .3, heavy ? .16 : .07, M.galv, s * (w / 2 + (heavy ? .1 : .07)), (Ht + .3) / 2, zL - .06));
-      if (!vertical) g.add(box(.06, .07, h + .6, M.galv, s * (w / 2 + .07), Ht + R + .03, zL - R - (h + .6) / 2));
-      if (!vertical) g.add(box(.05, .05, h + .6, M.galv, s * (w / 2 + .07), Ht + R + .6, zL - R - (h + .6) / 2, { shadow: false }));   // hanger angle
+      const tg = trackGeometry({ Ht, R, Rr, zo, horizLen, vertical, mirror: s < 0 }); const tm = new THREE.Mesh(tg, trackMat); tm.position.set(s * tx, 0, zL); tm.castShadow = true; tm.receiveShadow = true; g.add(tm);
+      if (heavy) g.add(box(.14, Ht + .3, .16, M.galv, s * (w / 2 + .16), (Ht + .3) / 2, zL - .06));   // 620NG self-supporting columns outside the tracks
+      else { g.add(box(.05, Ht, .004, M.galv, s * (tx + .02), Ht / 2, -WALL_T - .002, { shadow: false })); g.add(box(.004, Ht, .07, M.galv, s * (tx + .045), Ht / 2, -WALL_T - .035, { shadow: false })); }   // wall angle 50 x 70
+      if (!vertical) for (let k = 0; k <= 2; k++) { const zk = zL - R - .3 - k * (horizLen - .6) / 2; g.add(box(.04, .9, .04, M.galv, s * (tx + .02), Ht + Rr + .5, zk, { shadow: false })); g.add(box(.08, .04, .3, M.galv, s * tx, Ht + Rr + .07, zk, { shadow: false })); }   // hangers from the ceiling
     });
     // torsion shaft with spring packs and cable drums above the opening (inside)
     g.add(cyl(.028, w + .4, M.galv, 0, Ht + .2, zL - .18, 12).rotateZ(Math.PI / 2));
