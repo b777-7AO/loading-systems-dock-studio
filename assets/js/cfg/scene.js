@@ -284,7 +284,7 @@ export function buildLeveller({ M, st, w, bedH, truckRearZ = null }) {
   // pit frame angle flush in the floor
   { const fw = pw + gap + .04, fd = len + gap + .02, zc = -(len + gap) / 2 + .01;   // galvanised pit frame angle: a 4 cm rim round the pit (the pit itself stays open below the plate)
     [-1, 1].forEach(sx => pit.add(box(.04, .004, fd, M.galvDark, sx * (fw / 2 - .02), .003, zc, { shadow: false })));
-    pit.add(box(fw, .004, .04, M.galvDark, 0, .003, zc - fd / 2 + .02, { shadow: false })); pit.add(box(fw, .004, .04, M.galvDark, 0, .003, zc + fd / 2 - .02, { shadow: false })); }
+    pit.add(box(fw, .004, .04, M.galvDark, 0, .003, zc - fd / 2 + .02, { shadow: false })); if (!stepped) pit.add(box(fw, .004, .04, M.galvDark, 0, .003, zc + fd / 2 - .02, { shadow: false })); }
   pit.add(box(pw + gap + .08, .012, .14, M.galvDark, 0, .006, -len - .03, { shadow: false }));   // rear hinge cover: closes the gap behind the plate, floor runs through
   const hinge = new THREE.Group(); hinge.name = 'leveller_hinge'; hinge.position.set(0, -.02, -len); hinge.userData.dynamic = true; pit.add(hinge);   // plate top 1 cm above the pit frame at rest (frame boxes sit at +.001..+.007), so the tread surface is always visible
   const plate = uvMetres(box(pw, .06, len, M.levellerPlate, 0, 0, len / 2)); hinge.add(plate);
@@ -761,12 +761,16 @@ export function buildWarehouse({ mats, st, studio = false }) {
   g.add(box(WALL_T, H, D, facMat, x0 + WALL_T / 2, H / 2, -D / 2)); g.add(box(WALL_T, H, D, facMat, -x0 - WALL_T / 2, H / 2, -D / 2));
   g.add(box(W, H, WALL_T, inner, 0, H / 2, -D + WALL_T / 2));
   if (st.leveller !== 'none') {   // hall floor with the leveller pits cut out (plus the stepped-dock step strips), one per bay
-    const fw = W - .6, fd = D - .6; const sh = new THREE.Shape(); sh.moveTo(-fw / 2, -fd / 2); sh.lineTo(fw / 2, -fd / 2); sh.lineTo(fw / 2, fd / 2); sh.lineTo(-fw / 2, fd / 2); sh.closePath();
-    const isStepped = st.leveller === 'stepped'; const pLen = (st.levellerLen || 2500) / 1000 + .02, pW = (st.levellerW || 2000) / 1000 + .04; const pEdge = isStepped ? -WALL_T - .12 : 0;
+    const fw = W - .6, fd = D - .6; const isStepped = st.leveller === 'stepped'; const sh = new THREE.Shape();
+    // outline: back edge, then the front edge (local y = fd/2 is the front, world z = -WALL_T) with a notch per bay for the stepped-dock slit
+    sh.moveTo(-fw / 2, -fd / 2); sh.lineTo(fw / 2, -fd / 2); sh.lineTo(fw / 2, fd / 2);
+    const isSt_pLen = (st.levellerLen || 2500) / 1000 + .02, isSt_pW = (st.levellerW || 2000) / 1000 + .04;
+    if (isStepped) for (let i = bays - 1; i >= 0; i--) { const cx = bayX(i), hw = stepW / 2, pw2 = isSt_pW / 2, ys = fd / 2 - .12, yp = fd / 2 - .12 - isSt_pLen - .01;   // slit (stepW wide) running straight into the pit (pW wide): one cut-out
+      sh.lineTo(cx + hw, fd / 2); sh.lineTo(cx + hw, ys); sh.lineTo(cx + pw2, ys); sh.lineTo(cx + pw2, yp); sh.lineTo(cx - pw2, yp); sh.lineTo(cx - pw2, ys); sh.lineTo(cx - hw, ys); sh.lineTo(cx - hw, fd / 2); }
+    sh.lineTo(-fw / 2, fd / 2); sh.closePath(); const pLen = (st.levellerLen || 2500) / 1000 + .02, pW = (st.levellerW || 2000) / 1000 + .04; const pEdge = isStepped ? -WALL_T - .12 : 0;
     const addHole = (cx, hw, z1, z2) => { const y1 = -z1 - D / 2, y2 = -z2 - D / 2; /* local y = -(world z) - D/2 */ const hole = new THREE.Path(); hole.moveTo(cx - hw, y1); hole.lineTo(cx + hw, y1); hole.lineTo(cx + hw, y2); hole.lineTo(cx - hw, y2); hole.closePath(); sh.holes.push(hole); };
     for (let i = 0; i < bays; i++) { const cx = bayX(i);
-      if (isStepped) addHole(cx, stepW / 2, -WALL_T - .02, -WALL_T - .14);   /* step strip; must lie inside the floor plane (front edge at -WALL_T-.3+.3) */
-      addHole(cx, pW / 2, Math.min(pEdge, -WALL_T - .04) - (isStepped ? .12 : 0), pEdge - pLen - .01); }   // pit
+      if (!isStepped) addHole(cx, pW / 2, Math.min(pEdge, -WALL_T - .04), pEdge - pLen - .01); }   // pit (stepped: part of the front cut-out)
     const fg = new THREE.ShapeGeometry(sh, 2); const uv = fg.attributes.uv, pa = fg.attributes.position; for (let i = 0; i < uv.count; i++) uv.setXY(i, pa.getX(i), pa.getY(i));
     const fm = new THREE.Mesh(fg, M.floor); fm.rotation.x = -Math.PI / 2; fm.position.set(0, DOCK_H, -D / 2); fm.receiveShadow = true; g.add(fm);
   } else g.add(plane(W - .6, D - .6, M.floor, 0, DOCK_H, -D / 2));
@@ -803,8 +807,9 @@ export function buildWarehouse({ mats, st, studio = false }) {
     const cx = bayX(i); const bay = new THREE.Group(); bay.position.x = cx; g.add(bay);
     // dock edge plate
     const door = buildDoor({ M, st: { ...st, bayNo: i + 1, studio, stepDown }, w, h: h + stepDown }); bay.add(door.group); rigs.doors.push(door);
+    if (stepDown && !studio) [-1, 1].forEach(sx => bay.add(box((w - stepW) / 2, .004, .05, M.black, sx * (stepW / 2 + (w - stepW) / 4), DOCK_H + .002, -WALL_T - .06, { shadow: false })));   // narrow slit beside the notch where the door leaf goes into the floor
     if (stepDown && !studio) {   // the notch through the wall is concrete, not facade panel: sill and side cheeks
-      bay.add(box(stepW + .02, .02, WALL_T + .02, M.plinth, 0, DOCK_H - stepDown + .01, -WALL_T / 2, { shadow: false }));
+      bay.add(box(stepW + .02, .02, WALL_T + .02, M.levellerFrame, 0, DOCK_H - stepDown + .01, -WALL_T / 2, { shadow: false }));   // notch floor = continuation of the slit floor (one dark channel from the dock face to the leveller)
       [-1, 1].forEach(sx => bay.add(box(.02, stepDown + .02, WALL_T + .02, M.plinth, sx * (stepW / 2 + .01), DOCK_H - stepDown / 2, -WALL_T / 2, { shadow: false })));
     }
     if (st.leveller !== 'stepped') bay.add(box(w + .7, .14, .02, M.yellowStripe, 0, DOCK_H - .2, .07, { shadow: false }));   // yellow dock-edge marking (not on a stepped dock: the notch cuts through it)
